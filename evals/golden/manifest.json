@@ -1,23 +1,23 @@
 {
-  "version": 2,
+  "version": 3,
   "name": "QuickChef golden dataset",
   "description": "Curated dish resolution, typeahead, recipe, cart, flow, photo and edge cases for QuickChef.",
   "created": "2026-10-20",
   "cases_file": "cases.jsonl",
   "counts": {
-    "total": 76,
+    "total": 77,
     "by_mode": {
-      "offline": 43,
+      "offline": 44,
       "live": 33
     },
     "by_suite": {
-      "dish": 25,
-      "recipe": 18,
-      "suggest": 5,
       "cart": 6,
+      "dish": 25,
+      "edge": 8,
       "flow": 6,
       "photo": 8,
-      "edge": 8
+      "recipe": 18,
+      "suggest": 6
     }
   },
   "modes": {
@@ -39,9 +39,9 @@
   },
   "notes": [
     "Matar Kulcha remains a live ambiguity case: the canonical dish stays Matar Kulcha and the card must offer Chole Kulche.",
-    "Catalogue-only v2: unknown dishes are rejected with HTTP 422; the LLM is never asked to invent a recipe for them.",
     "Typeahead cases are deterministic and verify AND semantics for paneer/chaap searches.",
-    "Photo cases remain backend-only: photos are no longer shown in the wizard, but the photo service is retained.",
-    "Baselines live in evals/baselines and are written with --write-baseline."
+    "Baselines live in evals/baselines and are written with --write-baseline.",
+    "Catalogue suggestions remain deterministic; the custom path may use the LLM for new dishes.",
+    "Photos are shown only on the custom confirmation card and only when the relevance/quality gate passes."
   ]
 }

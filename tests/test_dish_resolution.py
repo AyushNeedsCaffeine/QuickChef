@@ -105,6 +105,8 @@ def test_hinglish_dishes_canonicalise_to_catalogue_names():
     assert recipes.display_name("pumpkin") == "Pumpkin Sabzi"
     assert recipes.display_name("kala chana") == "Kala Chana"
     assert recipes.display_name("masala chana") == "Masala Chana"
+    assert recipes.display_name("rasgula") == "Rasgulla"
+    assert recipes.get_fallback_recipe("rasgula") is not None
 
 
 def test_kale_chane_resolves_to_kala_chana(monkeypatch):

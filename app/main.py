@@ -31,7 +31,7 @@ from app.services.catalog import get_catalog
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-app = FastAPI(title="QuickChef", version="2.0.0")
+app = FastAPI(title="QuickChef", version="2.1.0")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -158,6 +158,9 @@ UNKNOWN_DISH_MESSAGE = (
     "I don’t have a reliable recipe for that dish yet. "
     "Pick one from the list or try another name."
 )
+CUSTOM_LLM_MESSAGE = (
+    "Custom dishes need the AI chef. Add a GROQ_API_KEY or pick a dish from the list."
+)
 
 
 def _dish_response(raw: str, canonical: str, *, source: str, custom: bool = False) -> dict:
@@ -193,10 +196,24 @@ def submit_dish(session_id: str, body: DishRequest):
             return _dish_response(raw, canonical, source="synonym")
 
     if body.custom:
-        canonical = recipes.catalog_name(raw)
-        if not canonical:
-            return JSONResponse(status_code=422, content={"understood": False, "message": UNKNOWN_DISH_MESSAGE})
-        return _dish_response(raw, canonical, source="catalog", custom=True)
+        parsed = parse_input(raw)
+        candidate = (parsed.canonical_dish or parsed.dish or "").strip()
+        if not candidate:
+            return JSONResponse(
+                status_code=422,
+                content={"understood": False, "message": "I couldn't understand that dish. Try another name."},
+            )
+        canonical = recipes.catalog_name(candidate) or candidate
+        if (
+            not config.LLM_ENABLED
+            and not recipes.has_catalog_dish(canonical)
+            and not recipes.get_fallback_recipe(canonical)
+        ):
+            return JSONResponse(
+                status_code=422,
+                content={"understood": False, "message": CUSTOM_LLM_MESSAGE},
+            )
+        return _dish_response(raw, canonical, source=parsed.source or "custom", custom=True)
 
     parsed = parse_input(raw)
     if not parsed.dish:
@@ -341,12 +358,20 @@ def submit_servings(session_id: str, body: ServingsRequest):
     if not raw_dish:
         return JSONResponse(status_code=422, content={"message": "Please choose a dish first."})
     learned = synonyms.lookup(raw_dish) or raw_dish
-    dish = recipes.catalog_name(learned)
-    if not dish:
-        return JSONResponse(
-            status_code=422,
-            content={"message": UNKNOWN_DISH_MESSAGE, "stage": "await_dish"},
-        )
+    if body.custom:
+        dish = recipes.catalog_name(learned) or learned
+        if not config.LLM_ENABLED and not recipes.get_fallback_recipe(dish):
+            return JSONResponse(
+                status_code=422,
+                content={"message": CUSTOM_LLM_MESSAGE, "stage": "await_dish"},
+            )
+    else:
+        dish = recipes.catalog_name(learned)
+        if not dish:
+            return JSONResponse(
+                status_code=422,
+                content={"message": UNKNOWN_DISH_MESSAGE, "stage": "await_dish"},
+            )
     _reset_if_paused(session_id)
     message = f"I want to cook {dish} for {body.servings} people"
     result = graph.invoke(
@@ -355,6 +380,7 @@ def submit_servings(session_id: str, body: ServingsRequest):
             "dish": dish,
             "servings": body.servings,
             "preparsed": True,
+            "custom": body.custom,
             "messages": [HumanMessage(content=message)],
         },
         _run_config(session_id, "wizard.servings", dish=dish, servings=body.servings),

@@ -7,7 +7,7 @@ the recipe, converts every ingredient into real grocery packs, fills your cart, 
 to you for review before a mock payment places the order. All in a clean 4-step wizard.
 
 ```
-Step 1  Dish      → live typeahead: "Dal Makhani" → select → confirm
+Step 1  Dish      → live typeahead: "Dal Makhani" → select → servings
 Step 2  Servings  → slider/typed "4 people"
 Step 3  Review    → full recipe + ingredient cards; add / remove / change quantity
 Step 4  Payment   → pick UPI / Card / COD → order placed
@@ -15,14 +15,17 @@ Step 4  Payment   → pick UPI / Card / COD → order placed
 
 ---
 
-## v2.0 release highlights
+## v2.1 release highlights
 
-- Live, catalogue-backed dish typeahead with a custom-dish escape hatch.
-- Catalogue-only recipe generation; unknown dishes return a clear validation message.
-- 31 new catalogue dishes including paneer/soy-chaap variants; new `soya_chaap` SKU.
-- Photos removed from the wizard while the backend photo service is retained.
-- New calligraphic logo; clicking the brand starts a fresh dish.
-- Golden dataset expanded to 76 cases including a deterministic `suggest` suite.
+- Known suggestions, quick-pick chips, and exact catalogue names now advance straight to Servings.
+- Ambiguous names still show candidate cards, then advance as soon as a candidate is chosen.
+- Only custom dishes show a confirmation card; the AI chef can now invent a recipe for a genuinely
+  new custom dish instead of forcing it into the catalogue.
+- Custom confirmation shows a dish photo only when Wikimedia offers a sufficiently relevant,
+  high-resolution image; otherwise the card stays text-only.
+- `Rasgulla` added to the catalogue (with an offline fallback), so `rasgula` resolves cleanly.
+- Logo supplied by the user, exported to responsive PNGs and favicon; clicking it starts a fresh dish.
+- Golden dataset expanded to 77 cases with typo/typeahead coverage.
 
 ---
 
@@ -32,12 +35,14 @@ Step 4  Payment   → pick UPI / Card / COD → order placed
 - **Live dish typeahead** backed by a curated catalogue: every keystroke returns relevant dishes,
   multi-word input uses AND semantics (`malai chaap` → only Malai Soy Chaap), and “Something else”
   reveals a custom-dish input.
-- **Catalogue-only recipes**: known dishes and explicit modifiers are sent to the LLM; unknown
-  dishes are rejected with a clear message instead of silently inventing a recipe.
+- **Catalogue-first recipes**: regular input is validated against the curated catalogue; unknown
+  dishes are rejected with a clear message. The explicit custom-dish path may use the LLM to create
+  a genuinely new dish, while offline mode rejects custom dishes it cannot resolve.
 - **Ambiguity handling without alias tables**: catalogue candidates are offered for names such as
   `Matar Kulcha` → “Did you mean Chole Kulche?”; specific corrections can be learned locally.
-- **No dish photos in the wizard** — the photo service remains available as an optional backend API,
-  but the UI never waits for or displays an image.
+- **Photos only on custom confirmation** — a custom dish may show one attributed Wikimedia image
+  when relevance and resolution gates pass. Normal catalogue dishes never request a photo, so the
+  image path cannot delay the common flow.
 - Recipe research via **Groq LLM** with structured extraction — ingredients, scaled quantities, **and cooking steps**.
 - **Offline mode**: no API key? Common dishes still work via a built-in fallback corpus (recipes + steps).
 - Strict catalog matching: aliases (`pyaz` → Onion, `haldi` → Turmeric), fuzzy names (`dal makhni` → Dal Makhani), and rejection of weak token overlaps (`Water` → Rose Water); pantry items are excluded from the cart.
@@ -49,9 +54,9 @@ Step 4  Payment   → pick UPI / Card / COD → order placed
 - **LangSmith tracing** of every run/LLM call + a rule-based eval suite.
 - **Feedback capture for golden-dataset growth**: “Not this dish” / accepted-correction pairs and an
   overall recipe + basket like/dislike bar on Review, written to a separate review queue.
-- **Curated golden dataset** (76 cases) with offline and live modes, typeahead coverage, JSON
+- **Curated golden dataset** (77 cases) with offline and live modes, typeahead coverage, JSON
   baselines, and a pytest gate.
-- **Calligraphic QuickChef wordmark** with a chef-hat/leaf mark; clicking it starts a fresh dish.
+- **User-supplied QuickChef logo** exported to responsive PNGs and a favicon; clicking it starts a fresh dish.
 - Faint **food-doodle background**, a **slow right-to-left dish marquee** (16 cuisines + sweets)
   and a floating steaming-bowl doodle; all motion honours `prefers-reduced-motion`.
 
@@ -83,7 +88,7 @@ QuickChef/
 │       ├── matcher.py     # ingredient → SKU
 │       ├── pack_selector.py
 │       ├── cart.py        # cart + orders
-│       ├── photos.py      # optional Wikimedia photo backend (not used by the wizard)
+│       ├── photos.py      # optional custom-confirm photo gate + cache
 │       ├── feedback.py    # append-only feedback queue (JSONL)
 │       └── synonyms.py    # learned dish-name corrections
 ├── evals/
@@ -96,8 +101,8 @@ QuickChef/
 ├── data/catalog.json      # 128 mock SKUs, including soya_chaap
 ├── data/synonyms.json     # learned user corrections (created on first choice)
 ├── templates/index.html
-├── static/{style.css,script.js,dish-placeholder.svg}
-├── static/dish_photos/    # optional local photo cache (gitignored)
+├── static/{style.css,script.js,dish-placeholder.svg,logo*.png,favicon.png}
+├── static/dish_photos/    # optional custom-photo cache (gitignored)
 ├── tests/                 # pytest suite
 └── docs/{SRS,HLD,LLD}.md
 ```
@@ -137,7 +142,9 @@ uvicorn app.main:app --reload --port 8000
 Open <http://127.0.0.1:8000> and walk the wizard:
 
 1. **Dish:** start typing `paneer` or `chaap` → pick a live suggestion (or choose
-   “Something else”). Confirm the canonical name, then continue. Unknown dishes are rejected.
+   “Something else”). Known suggestions advance immediately; ambiguous names show candidates.
+   Only a custom dish opens a confirmation preview (with an optional photo). Regular unknown dishes
+   are rejected.
 2. **Servings:** set `4` on the slider → loads the recipe and builds the basket.
 3. **Review:** read the full recipe (ingredients + steps); add `milk`, remove the cream, bump the urad dal quantity.
 4. **Payment:** choose `UPI` and pay → confirmation with the order id.
@@ -164,11 +171,11 @@ key/network and are intentionally excluded from `pytest`.
 | POST | `/api/session` | Create a session |
 | GET | `/api/session/{session_id}` | Current session state (dish, servings, recipe, cart, paused) |
 | GET | `/api/dish/suggest?q=&limit=` | Deterministic catalogue typeahead (AND semantics) |
-| POST | `/api/dish/{session_id}` | Wizard step 1 — resolve `{dish, custom?}`; rejects uncatalogued dishes |
-| GET | `/api/dish/photo?dish=` | Optional cached Wikimedia photo backend (not shown in the wizard) |
+| POST | `/api/dish/{session_id}` | Wizard step 1 — resolve `{dish, custom?}`; regular unknown dishes are rejected, custom dishes may use the LLM |
+| GET | `/api/dish/photo?dish=` | Cached Wikimedia photo lookup; the UI uses it only on custom confirmation |
 | POST | `/api/synonyms` | Learn a user correction `{term, canonical}` |
 | POST | `/api/feedback/{session_id}` | Capture dish rejection/correction or review like/dislike (best-effort) |
-| POST | `/api/servings/{session_id}` | Wizard step 2 — build recipe + cart from `{dish, servings}` |
+| POST | `/api/servings/{session_id}` | Wizard step 2 — build recipe + cart from `{dish, servings, custom?}` |
 | POST | `/api/chat/{session_id}` | Send a message; run the agent (legacy/conversational) |
 | GET | `/api/cart/{session_id}` | Cart items + totals |
 | POST | `/api/cart/{session_id}/items` | Add product `{product_id, quantity}` |
@@ -268,7 +275,7 @@ The experiment appears under the `quickchef` project in LangSmith.
 
 ### Golden dataset
 
-`evals/golden/cases.jsonl` is the curated regression suite: **76 cases** across `dish`, `recipe`,
+`evals/golden/cases.jsonl` is the curated regression suite: **77 cases** across `dish`, `recipe`,
 `suggest`, `cart`, `flow`, `photo`, and `edge`. Each case declares an `input`, rule-based `expect` checks,
 and a `mode`:
 
@@ -323,9 +330,11 @@ regression expectations automatically.
 ## How the agent works
 
 1. **understand** — extract `dish` and `servings`; canonicalize catalogue dishes, and for unknown
-   names ask the LLM for plausible catalogue candidates. Uncatalogued dishes are rejected before
-   recipe generation. Learned user corrections short-circuit the LLM.
-2. **confirm / ask_dish / ask_servings** — confirm the canonical dish (no photo), or prompt for missing input.
+   names ask the LLM for plausible catalogue candidates. Regular uncatalogued dishes are rejected
+   before recipe generation; the explicit custom path may continue so the LLM can create a new dish.
+   Learned user corrections short-circuit the LLM.
+2. **confirm / ask_dish / ask_servings** — regular catalogue selections advance immediately; only a
+   custom dish waits on a confirmation preview. Missing input is prompted as before.
 3. **extract** — produce a scaled ingredient list **and cooking steps** (LLM structured output, or fallback corpus).
 4. **match** — resolve each ingredient to a SKU and pick the cheapest covering pack.
 5. **cart_review** — `interrupt()` pauses for human review; cart edited via REST (wizard step 3).
@@ -341,14 +350,17 @@ regression expectations automatically.
   apply dish modifications (it builds the closest base recipe and shows a notice). New catalogue
   dishes such as Paneer Tikka and soy chaap need the LLM; they are rejected cleanly offline. Kala
   Chana, Pumpkin Sabzi, and Maggi Noodles are also LLM-only and have no offline fallback.
-- Photos are best-effort Wikimedia Commons matches, cached locally with attribution. Titles are
-  scored against canonical dish tokens and rejected for people/decorations or weak overlap. The
-  wizard no longer displays photos, so this path cannot delay the dish step; Wikimedia/Groq rate
-  limits can still slow optional photo or live-recipe runs.
+- A custom dish can be a genuinely new recipe only when the LLM is enabled. Without a key, custom
+  dishes that are not in the catalogue are rejected cleanly.
+- Custom photos are best-effort Wikimedia Commons matches, cached locally with attribution. Titles
+  are scored against dish tokens and images are rejected for people/decorations, weak overlap, low
+  resolution, or extreme aspect ratios. A missing photo leaves the confirmation text-only; normal
+  catalogue dishes never request one.
 - Learned synonyms live in the gitignored `data/synonyms.json`; there is no UI yet to review or delete them.
 - Captured feedback is local JSONL with no review UI; use the promotion CLI. Events contain the
   dish text and recipe/cart snapshot but no account or payment data.
-- Dish typeahead, custom-dish flow, and the logo reset are responsive but only manually tested in a browser.
+- Dish typeahead, custom-dish photo preview, and the logo reset are responsive but only manually
+  tested in a browser.
 
 ---
 

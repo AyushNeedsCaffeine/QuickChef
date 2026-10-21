@@ -15,6 +15,14 @@ def candidate(url="https://upload.wikimedia.org/example.jpg"):
     }
 
 
+def test_photo_quality_rejects_small_or_extreme_images():
+    assert photos._photo_quality_ok(640, 480)
+    assert photos._photo_quality_ok(1500, 1000)
+    assert not photos._photo_quality_ok(300, 300)
+    assert not photos._photo_quality_ok(1200, 200)
+    assert not photos._photo_quality_ok(400, 800)
+
+
 def test_score_prefers_exact_dish_titles():
     assert photos._score_title("File:Chole Kulche.jpg", "Chole Kulche") > 0
     assert photos._score_title("File:Matar Kulcha.jpg", "Matar Kulcha") > 0

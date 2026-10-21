@@ -22,6 +22,26 @@ def fresh(monkeypatch):
     return g, {"configurable": {"thread_id": "test-thread"}}
 
 
+def test_extract_allows_custom_non_catalogue_dish(monkeypatch):
+    recipe = graph_mod.ResolvedRecipe(
+        ingredients=[
+            graph_mod.RecipeItem(name="Milk", quantity=500, unit="ml", category="dairy")
+        ],
+        steps=["Boil the milk and simmer."],
+        source="llm",
+    )
+    monkeypatch.setattr(graph_mod, "resolve_recipe", lambda dish, servings: recipe)
+    result = graph_mod.extract({"dish": "Misal Pav", "servings": 4, "custom": True})
+    assert result["stage"] == "matching"
+    assert result["recipe_source"] == "llm"
+
+
+def test_extract_still_rejects_uncatalogued_non_custom_dish():
+    result = graph_mod.extract({"dish": "Misal Pav", "servings": 4})
+    assert result["stage"] == "await_dish"
+    assert result["dish"] is None
+
+
 def test_heuristic_parse_dish_and_servings():
     parsed = heuristic_parse("I want to cook Dal Makhani for 6 people")
     assert parsed.dish

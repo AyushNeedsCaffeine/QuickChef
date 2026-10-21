@@ -54,6 +54,12 @@ BAD_WORDS = {
     "museum",
 }
 OPTIONAL_TAILS = {"sabzi", "curry", "masala", "fry", "bhaji"}
+MIN_PHOTO_SCORE = 12.0
+MIN_PHOTO_WIDTH = 480
+MIN_PHOTO_HEIGHT = 320
+MIN_PHOTO_RATIO = 0.6
+MAX_PHOTO_RATIO = 2.2
+CACHE_VERSION = 2
 _lock = threading.Lock()
 
 
@@ -93,6 +99,13 @@ def _http_json(url: str, params: dict) -> dict:
         response = client.get(url, params=params)
         response.raise_for_status()
         return response.json()
+
+
+def _photo_quality_ok(width: int, height: int) -> bool:
+    if width < MIN_PHOTO_WIDTH or height < MIN_PHOTO_HEIGHT:
+        return False
+    ratio = width / height if height else 0
+    return MIN_PHOTO_RATIO <= ratio <= MAX_PHOTO_RATIO
 
 
 def _score_title(title: str, dish: str) -> float:
@@ -152,13 +165,17 @@ def _commons_candidate(dish: str) -> dict | None:
         if mime not in MIME_EXT:
             continue
         size = int(info.get("size") or 0)
+        width = int(info.get("width") or 0)
+        height = int(info.get("height") or 0)
+        if not _photo_quality_ok(width, height):
+            continue
         image_url = info.get("url")
         if size > 3_000_000 and info.get("thumburl"):
             image_url = info["thumburl"]
         if not image_url:
             continue
         score = _score_title(page.get("title", ""), dish)
-        if score <= 0:
+        if score < MIN_PHOTO_SCORE:
             continue
         meta = info.get("extmetadata") or {}
         candidate = {
@@ -172,6 +189,8 @@ def _commons_candidate(dish: str) -> dict | None:
             or "Wikimedia Commons",
             "license": _clean((meta.get("LicenseShortName") or {}).get("value")),
             "score": round(score, 2),
+            "width": width,
+            "height": height,
         }
         if best is None or candidate["score"] > best[0]:
             best = (candidate["score"], candidate)
@@ -199,7 +218,8 @@ def _wikipedia_candidate(dish: str) -> dict | None:
         thumb = (page.get("thumbnail") or {}).get("source")
         if not thumb:
             continue
-        if _score_title(str(page.get("title") or dish), dish) == 0:
+        score = _score_title(str(page.get("title") or dish), dish)
+        if score < MIN_PHOTO_SCORE:
             continue
         return {
             "url": thumb,
@@ -208,7 +228,9 @@ def _wikipedia_candidate(dish: str) -> dict | None:
             "source_url": "https://en.wikipedia.org/wiki/" + quote(page.get("title", dish).replace(" ", "_")),
             "artist": "Wikimedia Commons contributors",
             "license": "",
-            "score": 1.0,
+            "score": round(score, 2),
+            "width": 0,
+            "height": 0,
         }
     return None
 
@@ -273,6 +295,7 @@ def _none(reason: str = "no confident photo") -> dict:
         "artist": None,
         "license": None,
         "reason": reason,
+        "version": CACHE_VERSION,
         "fetched_at": int(time.time()),
     }
 
@@ -299,6 +322,8 @@ def find_photo(dish: str) -> dict:
     with _lock:
         cache = _load_cache()
     entry = cache.get(key)
+    if entry and entry.get("version") != CACHE_VERSION:
+        entry = None
     stale_photo: dict | None = None
     if entry:
         age = time.time() - int(entry.get("fetched_at", 0))
@@ -342,6 +367,10 @@ def find_photo(dish: str) -> dict:
         "artist": candidate["artist"],
         "license": candidate["license"],
         "title": candidate.get("title"),
+        "score": candidate.get("score"),
+        "width": candidate.get("width"),
+        "height": candidate.get("height"),
+        "version": CACHE_VERSION,
         "fetched_at": int(time.time()),
     }
     with _lock:

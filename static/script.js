@@ -130,12 +130,19 @@ let suggestTimer = null;
 let suggestToken = 0;
 let activeSuggestion = -1;
 let toastTimer = null;
+let customPhotoToken = 0;
 
 function clearDishConfirm() {
+  customPhotoToken += 1;
   el("dish-confirm").classList.add("hidden");
   el("dc-candidate-list").innerHTML = "";
   el("dc-candidates").classList.add("hidden");
+  el("dc-photo").classList.add("hidden");
+  el("dc-photo-img").removeAttribute("src");
+  el("dc-photo-credit").textContent = "";
+  el("dc-photo-credit").removeAttribute("href");
   state.candidates = [];
+  state.dishContext = null;
 }
 
 function showDishToast(message) {
@@ -154,10 +161,14 @@ function hideSuggestions() {
   activeSuggestion = -1;
 }
 
-function hideCustomDish() {
-  state.custom = false;
+function closeCustomInput() {
   el("custom-dish-wrap").classList.add("hidden");
   customInput.value = "";
+}
+
+function hideCustomDish() {
+  state.custom = false;
+  closeCustomInput();
 }
 
 function setActiveSuggestion(index) {
@@ -178,7 +189,7 @@ function chooseSuggestion(name) {
   dishInput.value = name;
   hideSuggestions();
   hideCustomDish();
-  submitDish(name);
+  submitDish(name, { autoAdvance: true });
 }
 
 function openCustomDish() {
@@ -204,8 +215,9 @@ function renderSuggestions(names) {
     option.id = `dish-option-${index}`;
     option.setAttribute("role", "option");
     option.innerHTML = `<span>${esc(name)}</span><span class="suggestion-hint">Use this dish</span>`;
-    option.addEventListener("mousedown", (event) => {
+    option.addEventListener("click", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       chooseSuggestion(name);
     });
     suggestionsBox.appendChild(option);
@@ -217,8 +229,9 @@ function renderSuggestions(names) {
   custom.id = `dish-option-${names.length}`;
   custom.setAttribute("role", "option");
   custom.innerHTML = `<span><span class="plus">+</span> Something else / Add a different dish</span><span class="suggestion-hint">Not listed</span>`;
-  custom.addEventListener("mousedown", (event) => {
+  custom.addEventListener("click", (event) => {
     event.preventDefault();
+    event.stopPropagation();
     openCustomDish();
   });
   suggestionsBox.appendChild(custom);
@@ -266,13 +279,9 @@ function renderDishCandidates(candidates) {
 async function selectCandidate(name, button) {
   state.dish = name;
   state.display = name;
+  state.custom = false;
   dishInput.value = name;
-  void linkRejection(state.rawDish, name, name);
-  el("dc-name").textContent = name;
-  el("dc-desc").textContent = "We'll use this dish for your recipe.";
-  el("dc-eyebrow").textContent = "Confirm your dish";
   document.querySelectorAll(".dc-candidate").forEach((item) => item.classList.toggle("selected", item === button));
-  el("servings-dish-label").innerHTML = `Cooking <b>${esc(name)}</b>`;
   if (state.rawDish) {
     try {
       await api("/api/synonyms", {
@@ -283,9 +292,10 @@ async function selectCandidate(name, button) {
       console.warn("synonym:", err.message);
     }
   }
+  goToServings();
 }
 
-function showDishConfirm(data) {
+function showDishConfirm(data, { custom = false } = {}) {
   state.rawDish = data.raw || state.rawDish;
   state.dishContext = {
     raw: data.raw || state.rawDish,
@@ -296,23 +306,62 @@ function showDishConfirm(data) {
     modifiers: data.modifiers,
     source: data.source,
   };
-  el("dc-eyebrow").textContent = data.candidates?.length ? "Did you mean…" : "Confirm your dish";
+  const candidates = data.candidates || [];
+  el("dc-eyebrow").textContent = custom ? "Custom dish" : "Did you mean…";
   el("dc-name").textContent = data.display || data.dish;
-  el("dc-desc").textContent = data.candidates?.length
-    ? "Pick the dish you meant, or continue with this one."
-    : "We'll build a basket for this dish.";
+  el("dc-desc").textContent = custom
+    ? "Our AI chef understood this custom dish. Confirm it to build a recipe."
+    : "Pick the dish you meant, or continue with this one.";
+  el("dc-yes").textContent = custom ? "Use this dish" : "Continue";
+  el("dc-photo").classList.add("hidden");
   el("dish-confirm").classList.remove("hidden");
-  renderDishCandidates(data.candidates || []);
+  renderDishCandidates(candidates);
+  if (custom) loadCustomPhoto(data.dish, data.display || data.dish);
 }
 
-async function submitDish(raw, custom = false) {
+async function loadCustomPhoto(dish, display) {
+  const token = ++customPhotoToken;
+  try {
+    const data = await api(`/api/dish/photo?dish=${encodeURIComponent(dish)}`);
+    if (token !== customPhotoToken || data.kind !== "photo" || !data.url) return;
+    if (Number(data.score || 0) < 12) return;
+    const img = el("dc-photo-img");
+    img.alt = `${display} dish`;
+    img.onload = () => {
+      if (token === customPhotoToken) el("dc-photo").classList.remove("hidden");
+    };
+    img.onerror = () => {
+      if (token === customPhotoToken) el("dc-photo").classList.add("hidden");
+    };
+    img.src = data.url;
+    const credit = el("dc-photo-credit");
+    if (data.source_url) {
+      credit.href = data.source_url;
+      credit.textContent = `Photo: ${data.artist || data.source || "Wikimedia Commons"}`;
+    }
+  } catch (err) {
+    console.warn("photo:", err.message);
+  }
+}
+
+function goToServings() {
+  if (!state.dish) return;
+  void linkRejection(state.rawDish, state.dish, state.display || state.dish);
+  state.dishContext = null;
+  el("servings-dish-label").innerHTML = `Cooking <b>${esc(state.display || state.dish)}</b>`;
+  el("dish-confirm").classList.add("hidden");
+  setFeedback(el("dish-feedback"), "");
+  showStep(2);
+}
+
+async function submitDish(raw, { custom = false, autoAdvance = false } = {}) {
   const feedback = el("dish-feedback");
   const button = el("dish-btn");
   if (button.disabled) return;
+  if (!state.sessionId) await newSession();
   button.disabled = true;
   hideSuggestions();
   clearDishConfirm();
-  state.dishContext = null;
   state.rawDish = raw;
   setFeedback(feedback, `<span class="spinner"></span> Finding that dish…`);
   try {
@@ -322,10 +371,17 @@ async function submitDish(raw, custom = false) {
     });
     state.dish = data.dish;
     state.display = data.display;
-    state.custom = false;
-    hideCustomDish();
+    state.custom = custom;
+    if (custom) closeCustomInput();
+    else hideCustomDish();
     setFeedback(feedback, `<span class="understood"><span class="tick">✓</span> ${esc(data.display)}</span>`);
-    showDishConfirm(data);
+    if (custom || (data.candidates || []).length) {
+      showDishConfirm(data, { custom });
+    } else if (autoAdvance) {
+      goToServings();
+    } else {
+      showDishConfirm(data);
+    }
   } catch (err) {
     setFeedback(feedback, esc(err.message), "error");
     showDishToast(err.message);
@@ -334,15 +390,7 @@ async function submitDish(raw, custom = false) {
   }
 }
 
-el("dc-yes").addEventListener("click", () => {
-  if (!state.dish) return;
-  void linkRejection(state.rawDish, state.dish, state.display || state.dish);
-  state.dishContext = null;
-  el("servings-dish-label").innerHTML = `Cooking <b>${esc(state.display || state.dish)}</b>`;
-  el("dish-confirm").classList.add("hidden");
-  setFeedback(el("dish-feedback"), "");
-  showStep(2);
-});
+el("dc-yes").addEventListener("click", goToServings);
 
 el("dc-no").addEventListener("click", () => {
   const rejected = state.dishContext;
@@ -355,6 +403,7 @@ el("dc-no").addEventListener("click", () => {
   state.display = null;
   state.rawDish = null;
   clearDishConfirm();
+  hideCustomDish();
   setFeedback(el("dish-feedback"), "No problem — tell me the right dish.");
   dishInput.focus();
   dishInput.select();
@@ -365,11 +414,11 @@ el("dish-form").addEventListener("submit", (event) => {
   event.preventDefault();
   if (state.custom) {
     const customValue = customInput.value.trim();
-    if (customValue) submitDish(customValue, true);
+    if (customValue) submitDish(customValue, { custom: true });
     return;
   }
   const value = dishInput.value.trim();
-  if (value) submitDish(value);
+  if (value) submitDish(value, { autoAdvance: true });
 });
 
 dishInput.addEventListener("input", () => {
@@ -404,7 +453,7 @@ dishInput.addEventListener("keydown", (event) => {
   } else if (event.key === "Enter" && activeSuggestion >= 0) {
     event.preventDefault();
     const option = suggestionsBox.querySelectorAll(".dish-suggestion")[activeSuggestion];
-    if (option) option.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    if (option) option.click();
   } else if (event.key === "Escape") {
     hideSuggestions();
   }
@@ -414,13 +463,13 @@ customInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
     const value = customInput.value.trim();
-    if (value) submitDish(value, true);
+    if (value) submitDish(value, { custom: true });
   }
 });
 
 el("custom-dish-btn").addEventListener("click", () => {
   const value = customInput.value.trim();
-  if (value) submitDish(value, true);
+  if (value) submitDish(value, { custom: true });
 });
 el("custom-dish-cancel").addEventListener("click", () => {
   hideCustomDish();
@@ -437,7 +486,7 @@ document.querySelectorAll(".chip-btn").forEach((button) =>
   button.addEventListener("click", () => {
     dishInput.value = button.dataset.dish;
     hideCustomDish();
-    submitDish(button.dataset.dish);
+    submitDish(button.dataset.dish, { autoAdvance: true });
   })
 );
 
@@ -482,7 +531,8 @@ el("food-track").addEventListener("click", async (e) => {
   if (!card || card.tabIndex === -1) return;
   if (!state.sessionId) await newSession();
   el("dish-input").value = card.dataset.dish;
-  submitDish(card.dataset.dish);
+  hideCustomDish();
+  submitDish(card.dataset.dish, { autoAdvance: true });
 });
 
 /* ---------- STEP 2 ---------- */
@@ -520,7 +570,7 @@ async function submitServings() {
   try {
     const data = await api(`/api/servings/${state.sessionId}`, {
       method: "POST",
-      body: JSON.stringify({ dish: state.dish, servings: state.servings }),
+      body: JSON.stringify({ dish: state.dish, servings: state.servings, custom: state.custom }),
     });
     state.recipe = data.recipe;
     state.cart = data.cart;

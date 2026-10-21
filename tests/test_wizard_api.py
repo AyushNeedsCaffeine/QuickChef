@@ -248,10 +248,31 @@ def test_unknown_dish_is_rejected(client, session):
     assert "reliable recipe" in r.json()["message"]
 
 
-def test_custom_unknown_dish_is_rejected(client, session):
+def test_custom_dish_can_be_new_when_llm_is_enabled(client, session):
+    r = client.post(f"/api/dish/{session}", json={"dish": "Unicorn stew", "custom": True})
+    assert r.status_code == 200
+    assert r.json()["dish"] == "Unicorn stew"
+    assert r.json()["custom"] is True
+
+
+def test_custom_unknown_dish_is_rejected_without_llm(client, session, monkeypatch):
+    monkeypatch.setattr(main_mod.config, "LLM_ENABLED", False)
     r = client.post(f"/api/dish/{session}", json={"dish": "Unicorn stew", "custom": True})
     assert r.status_code == 422
-    assert "reliable recipe" in r.json()["message"]
+    assert "AI chef" in r.json()["message"]
+
+
+def test_custom_llm_normalizes_typo_to_catalogue(client, session, monkeypatch):
+    parsed = graph_mod.ParsedInput(
+        dish="rasgula", canonical_dish="Rasgulla", source="llm"
+    )
+    monkeypatch.setattr(main_mod, "parse_input", lambda _raw: parsed)
+    r = client.post(f"/api/dish/{session}", json={"dish": "rasgula", "custom": True})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["dish"] == "Rasgulla"
+    assert body["display"] == "Rasgulla"
+    assert body["custom"] is True
 
 
 def test_custom_known_dish_is_accepted(client, session):
@@ -276,17 +297,27 @@ def test_suggest_endpoint_chaap_and_and_semantics(client):
     assert "Soya Chaap" not in [item["name"] for item in paneer]
 
 
+def test_suggest_endpoint_rasgula_typo(client):
+    names = [
+        item["name"]
+        for item in client.get("/api/dish/suggest", params={"q": "rasgula"}).json()["results"]
+    ]
+    assert names == ["Rasgulla"]
+
+
 def test_suggest_endpoint_empty_and_unknown(client):
     popular = client.get("/api/dish/suggest", params={"limit": 4}).json()["results"]
     assert [item["name"] for item in popular] == ["Garlic Naan", "Paneer Butter Masala", "Dal Makhani", "Chole Kulche"]
     assert client.get("/api/dish/suggest", params={"q": "unicorn"}).json()["results"] == []
 
 
-def test_homepage_has_typeahead_and_no_photo_ui(client):
+def test_homepage_has_typeahead_and_custom_only_photo_ui(client):
     html = client.get("/").text
     assert 'id="dish-suggestions"' in html
     assert 'id="custom-dish-input"' in html
     assert 'id="brand-home"' in html
+    assert 'id="dc-photo"' in html
+    assert 'src="/static/logo-160.png"' in html
     assert "recipe-photo" not in html
     assert "dc-media" not in html
 
@@ -302,6 +333,29 @@ def test_photo_endpoint(client, monkeypatch):
     assert r.json()["kind"] == "photo"
     assert r.json()["dish"] == "Chole Kulche"
     assert client.get("/api/dish/photo").status_code == 422
+
+
+def test_servings_passes_custom_flag(client, session, monkeypatch):
+    captured = {}
+
+    def fake_invoke(state, config=None):
+        captured.update(state)
+        return {
+            "stage": "cart_review",
+            "dish": state.get("dish"),
+            "servings": state.get("servings"),
+            "ingredients": [],
+            "steps": [],
+        }
+
+    monkeypatch.setattr(main_mod.graph, "invoke", fake_invoke)
+    r = client.post(
+        f"/api/servings/{session}",
+        json={"dish": "Misal Pav", "servings": 2, "custom": True},
+    )
+    assert r.status_code == 200
+    assert captured["custom"] is True
+    assert captured["dish"] == "Misal Pav"
 
 
 def test_servings_passes_preparsed_dish(client, session, monkeypatch):
@@ -330,6 +384,8 @@ def test_static_assets_served(client):
     assert client.get("/static/script.js").status_code == 200
     assert client.get("/static/doodles.png").status_code == 200
     assert client.get("/static/dish-placeholder.svg").status_code == 200
+    assert client.get("/static/logo-160.png").status_code == 200
+    assert client.get("/static/favicon.png").status_code == 200
     card_art = [
         "naan", "paneer-butter-masala", "dal-makhani", "chole-kulche", "rajma-chawal",
         "aloo-gobi", "palak-paneer", "veg-biryani", "veg-pulao", "idli-sambar",

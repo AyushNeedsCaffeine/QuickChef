@@ -37,6 +37,7 @@ POPULAR_DISHES = [
     "Pasta",
     "Veg Hakka Noodles",
     "Rasmalai",
+    "Rasgulla",
     "Gulab Jamun",
     "Kala Chana",
     "Masala Chana",
@@ -284,6 +285,13 @@ FALLBACK_RECIPES: dict[str, list[tuple[str, float, str, str]]] = {
         ("Mint Leaves", 30, "g", "vegetables"),
         ("Salt", 3, "tsp", "spices"),
     ],
+    "rasgulla": [
+        ("Full Cream Milk", 1500, "ml", "dairy"),
+        ("Lemon", 1, "pc", "vegetables"),
+        ("Sugar", 300, "g", "spices"),
+        ("Green Cardamom", 4, "pc", "spices"),
+        ("Rose Water", 1, "tsp", "condiments"),
+    ],
     "vegetable poha": [
         ("Poha", 250, "g", "grains"),
         ("Onion", 150, "g", "vegetables"),
@@ -350,6 +358,14 @@ FALLBACK_STEPS: dict[str, list[str]] = {
         "Layer the marinated vegetables with rice, curd, mint and coriander.",
         "Seal and cook on low heat (dum) for 20-25 minutes.",
         "Fluff gently, garnish with fried onions and serve with raita.",
+    ],
+    "rasgulla": [
+        "Boil the milk, add lemon juice gradually and stir until the milk curdles into soft chenna.",
+        "Strain the chenna through muslin, rinse under cold water and squeeze out excess moisture.",
+        "Knead the chenna until smooth, then shape it into small crack-free balls.",
+        "Boil sugar with water and green cardamom to make a light syrup.",
+        "Slide the chenna balls into the simmering syrup, cover and cook for 15-20 minutes until spongy.",
+        "Turn off the heat, stir in rose water and let the rasgullas cool in the syrup before serving.",
     ],
     "vegetable poha": [
         "Rinse poha in water until soft, then drain and set aside.",

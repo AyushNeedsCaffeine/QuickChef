@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-10-21T09:08:56.559748+00:00",
+  "generated_at": "2026-10-21T17:45:57.797848+00:00",
   "mode": "live",
   "summary": {
     "total": 25,
@@ -8,7 +8,7 @@
     "failed": 0,
     "mean_score": 1.0,
     "min_score": 1.0,
-    "seconds": 14.88,
+    "seconds": 21.05,
     "mode": "live"
   },
   "results": [
@@ -28,7 +28,7 @@
         "display": "Dal Makhani",
         "candidates": []
       },
-      "seconds": 0.35
+      "seconds": 0.25
     },
     {
       "id": "dish-typo-dal-makhni",
@@ -201,7 +201,7 @@
           "chole kulche"
         ]
       },
-      "seconds": 5.81
+      "seconds": 10.83
     },
     {
       "id": "dish-colloquial-chole-kulcha",
@@ -218,7 +218,7 @@
         "display": "Chole Kulche",
         "candidates": []
       },
-      "seconds": 0.49
+      "seconds": 0.66
     },
     {
       "id": "dish-palak-paneer-live",
@@ -235,7 +235,7 @@
         "display": "Palak Paneer",
         "candidates": []
       },
-      "seconds": 0.61
+      "seconds": 0.49
     },
     {
       "id": "dish-veg-pulao-live",
@@ -252,7 +252,7 @@
         "display": "Veg Pulao",
         "candidates": []
       },
-      "seconds": 0.76
+      "seconds": 0.65
     },
     {
       "id": "dish-modifier-rajma-live",
@@ -270,7 +270,7 @@
         "display": "Rajma Without Onion Garlic",
         "candidates": []
       },
-      "seconds": 0.69
+      "seconds": 0.63
     },
     {
       "id": "dish-modifier-pav-bhaji-live",
@@ -288,7 +288,7 @@
         "display": "Pav Bhaji Extra Butter",
         "candidates": []
       },
-      "seconds": 0.76
+      "seconds": 0.95
     },
     {
       "id": "dish-unknown-sushi-live",
@@ -304,7 +304,7 @@
         "display": "",
         "candidates": []
       },
-      "seconds": 1.67
+      "seconds": 1.24
     },
     {
       "id": "dish-matar-paneer-no-candidate-live",
@@ -321,7 +321,7 @@
         "display": "Matar Paneer",
         "candidates": []
       },
-      "seconds": 0.64
+      "seconds": 2.25
     },
     {
       "id": "dish-live-kale-chane",
@@ -337,7 +337,7 @@
         "display": "Kala Chana",
         "candidates": []
       },
-      "seconds": 0.54
+      "seconds": 1.06
     },
     {
       "id": "dish-live-masala-chane",
@@ -353,7 +353,7 @@
         "display": "Masala Chana",
         "candidates": []
       },
-      "seconds": 0.56
+      "seconds": 0.72
     },
     {
       "id": "dish-live-maggi",
@@ -369,7 +369,7 @@
         "display": "Maggi Noodles",
         "candidates": []
       },
-      "seconds": 0.81
+      "seconds": 0.68
     },
     {
       "id": "dish-live-pumpkin",
@@ -385,7 +385,7 @@
         "display": "Pumpkin Sabzi",
         "candidates": []
       },
-      "seconds": 1.09
+      "seconds": 0.53
     },
     {
       "id": "dish-soya-chaap-offline",

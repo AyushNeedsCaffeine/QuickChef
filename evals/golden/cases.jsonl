@@ -72,5 +72,6 @@
 {"id":"suggest-empty-popular","suite":"suggest","mode":"offline","input":{"q":"","limit":8},"expect":{"count":8,"first":"Garlic Naan"},"tags":["typeahead","empty","offline"]}
 {"id":"suggest-chaap","suite":"suggest","mode":"offline","input":{"q":"chaap","limit":8},"expect":{"names":["Soya Chaap","Malai Soy Chaap","Afghani Soy Chaap","Tandoori Soy Chaap"]},"tags":["typeahead","chaap","offline"]}
 {"id":"suggest-malai-chaap","suite":"suggest","mode":"offline","input":{"q":"malai chaap","limit":8},"expect":{"names":["Malai Soy Chaap"]},"tags":["typeahead","chaap","and-semantics","offline"]}
+{"id":"suggest-rasgula","suite":"suggest","mode":"offline","input":{"q":"rasgula","limit":8},"expect":{"names":["Rasgulla"]},"tags":["typeahead","sweet","typo","offline"]}
 {"id":"suggest-paneer","suite":"suggest","mode":"offline","input":{"q":"paneer","limit":8},"expect":{"names_include":["Paneer Tikka","Paneer Lababdar"],"names_exclude":["Soya Chaap","Sushi"]},"tags":["typeahead","paneer","offline"]}
 {"id":"suggest-unknown","suite":"suggest","mode":"offline","input":{"q":"unicorn","limit":8},"expect":{"count":0},"tags":["typeahead","negative","offline"]}

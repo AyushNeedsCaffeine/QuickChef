@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-10-21T09:10:11.948497+00:00",
+  "generated_at": "2026-10-21T17:47:26.486594+00:00",
   "mode": "live",
   "summary": {
     "total": 18,
@@ -8,7 +8,7 @@
     "failed": 0,
     "mean_score": 1.0,
     "min_score": 1.0,
-    "seconds": 55.52,
+    "seconds": 69.55,
     "mode": "live"
   },
   "results": [
@@ -31,7 +31,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.98
+      "seconds": 1.08
     },
     {
       "id": "recipe-chole-offline",
@@ -52,7 +52,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.04
+      "seconds": 0.03
     },
     {
       "id": "recipe-paneer-butter-masala-offline",
@@ -73,7 +73,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.04
+      "seconds": 0.03
     },
     {
       "id": "recipe-rajma-curry-offline",
@@ -136,7 +136,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.03
+      "seconds": 0.04
     },
     {
       "id": "recipe-dal-makhani-scale",
@@ -152,7 +152,7 @@
         "mismatches": [],
         "checked": 18
       },
-      "seconds": 0.07
+      "seconds": 0.08
     },
     {
       "id": "recipe-palak-paneer-live",
@@ -169,11 +169,11 @@
         "min_cart_items": true
       },
       "details": {
-        "ingredients": 14,
+        "ingredients": 16,
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 5.84
+      "seconds": 6.26
     },
     {
       "id": "recipe-masala-dosa-live",
@@ -194,7 +194,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 1.59
+      "seconds": 1.81
     },
     {
       "id": "recipe-chole-kulche-live",
@@ -212,55 +212,13 @@
       },
       "details": {
         "ingredients": 16,
-        "steps": 6,
+        "steps": 7,
         "source": "llm"
       },
-      "seconds": 2.16
+      "seconds": 2.21
     },
     {
       "id": "recipe-garlic-naan-live",
-      "suite": "recipe",
-      "mode": "live",
-      "score": 1.0,
-      "passed": true,
-      "checks": {
-        "must_include": true,
-        "min_ingredients": true,
-        "min_steps": true,
-        "source_one_of": true,
-        "all_quantities_positive": true,
-        "min_cart_items": true
-      },
-      "details": {
-        "ingredients": 10,
-        "steps": 5,
-        "source": "llm"
-      },
-      "seconds": 2.02
-    },
-    {
-      "id": "recipe-veg-hakka-noodles-live",
-      "suite": "recipe",
-      "mode": "live",
-      "score": 1.0,
-      "passed": true,
-      "checks": {
-        "must_include": true,
-        "min_ingredients": true,
-        "min_steps": true,
-        "source_one_of": true,
-        "all_quantities_positive": true,
-        "min_cart_items": true
-      },
-      "details": {
-        "ingredients": 11,
-        "steps": 5,
-        "source": "llm"
-      },
-      "seconds": 1.81
-    },
-    {
-      "id": "recipe-rasmalai-live",
       "suite": "recipe",
       "mode": "live",
       "score": 1.0,
@@ -278,7 +236,49 @@
         "steps": 4,
         "source": "llm"
       },
-      "seconds": 1.59
+      "seconds": 1.68
+    },
+    {
+      "id": "recipe-veg-hakka-noodles-live",
+      "suite": "recipe",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "must_include": true,
+        "min_ingredients": true,
+        "min_steps": true,
+        "source_one_of": true,
+        "all_quantities_positive": true,
+        "min_cart_items": true
+      },
+      "details": {
+        "ingredients": 13,
+        "steps": 6,
+        "source": "llm"
+      },
+      "seconds": 2.19
+    },
+    {
+      "id": "recipe-rasmalai-live",
+      "suite": "recipe",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "must_include": true,
+        "min_ingredients": true,
+        "min_steps": true,
+        "source_one_of": true,
+        "all_quantities_positive": true,
+        "min_cart_items": true
+      },
+      "details": {
+        "ingredients": 8,
+        "steps": 5,
+        "source": "llm"
+      },
+      "seconds": 12.39
     },
     {
       "id": "recipe-pasta-live",
@@ -299,7 +299,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 2.69
+      "seconds": 7.99
     },
     {
       "id": "recipe-pav-bhaji-live",
@@ -320,7 +320,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 8.85
+      "seconds": 6.32
     },
     {
       "id": "recipe-paneer-tikka-live",
@@ -341,7 +341,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 11.71
+      "seconds": 10.47
     },
     {
       "id": "recipe-rajma-modifier-live",
@@ -359,11 +359,11 @@
         "min_cart_items": true
       },
       "details": {
-        "ingredients": 12,
-        "steps": 5,
+        "ingredients": 13,
+        "steps": 4,
         "source": "llm"
       },
-      "seconds": 8.61
+      "seconds": 9.75
     },
     {
       "id": "recipe-live-kala-chana",
@@ -382,10 +382,10 @@
       },
       "details": {
         "ingredients": 13,
-        "steps": 5,
+        "steps": 6,
         "source": "llm"
       },
-      "seconds": 7.41
+      "seconds": 7.16
     }
   ]
 }

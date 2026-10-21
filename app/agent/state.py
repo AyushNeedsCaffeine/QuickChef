@@ -11,6 +11,7 @@ class AgentState(TypedDict, total=False):
     dish: Optional[str]
     servings: Optional[int]
     preparsed: bool
+    custom: bool
     candidates: list[dict]
     needs_clarification: bool
     ingredients: list[dict]

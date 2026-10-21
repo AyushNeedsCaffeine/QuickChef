@@ -7,19 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <header class="topbar">
     <button class="brand" id="brand-home" type="button" aria-label="QuickChef home — start a new dish">
       <span class="logo" aria-hidden="true">
-        <svg viewBox="0 0 44 44" role="presentation">
-          <path d="M13 19c-4.2 0-6.8 2.5-6.8 5.7 0 2.2 1.3 4 3.4 4.8L11 36h22l1.4-6.5c2.1-.8 3.4-2.6 3.4-4.8 0-3.2-2.6-5.7-6.8-5.7-1.4-3.8-4.5-6.2-8-6.2s-6.6 2.4-8 6.2Z" fill="#eaf7ee" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>
-          <path d="M12.5 29.5h19" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
-          <path d="M22 22.5c-2.8 1.5-4 4.2-3.3 6.8M23 22.5c2.8 1.5 4 4.2 3.3 6.8" fill="none" stroke="#0c831f" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M22 15.8v-3.2" stroke="#0c831f" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M22 12.6c1.7-2.9 4.2-3.9 6.9-3.2-1.5 2.9-3.8 4-6.9 3.2Z" fill="#8fd19e" stroke="#0c831f" stroke-width="1.1" stroke-linejoin="round"/>
-        </svg>
+        <img src="/static/logo-160.png" alt="" width="160" height="160" />
       </span>
       <span class="brand-copy">
         <span class="wordmark" role="heading" aria-level="1">QuickChef</span>
@@ -73,6 +68,10 @@
         </div>
         <div id="dish-feedback" class="feedback" aria-live="polite"></div>
         <div id="dish-confirm" class="dish-confirm hidden" aria-live="polite">
+          <div class="dc-photo hidden" id="dc-photo">
+            <img id="dc-photo-img" alt="" loading="eager" />
+            <a id="dc-photo-credit" href="#" target="_blank" rel="noopener noreferrer"></a>
+          </div>
           <div class="dc-body">
             <span class="eyebrow" id="dc-eyebrow">Confirm your dish</span>
             <h3 id="dc-name">—</h3>
