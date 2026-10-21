@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "generated_at": "2026-10-21T04:21:51.871832+00:00",
+  "generated_at": "2026-10-21T09:56:01.137721+00:00",
   "mode": "offline",
   "summary": {
-    "total": 35,
-    "passed": 35,
+    "total": 43,
+    "passed": 43,
     "failed": 0,
     "mean_score": 1.0,
     "min_score": 1.0,
-    "seconds": 0.81,
+    "seconds": 1.68,
     "mode": "offline"
   },
   "results": [
@@ -28,7 +28,7 @@
         "display": "Dal Makhani",
         "candidates": []
       },
-      "seconds": 0.1
+      "seconds": 0.25
     },
     {
       "id": "dish-typo-dal-makhni",
@@ -62,7 +62,7 @@
         "display": "Chole Kulche",
         "candidates": []
       },
-      "seconds": 0.0
+      "seconds": 0.01
     },
     {
       "id": "dish-translit-chole-kulcha",
@@ -131,7 +131,7 @@
         "display": "Rajma Without Onion Garlic",
         "candidates": []
       },
-      "seconds": 0.0
+      "seconds": 0.01
     },
     {
       "id": "dish-palak-paneer-offline",
@@ -174,12 +174,11 @@
       "score": 1.0,
       "passed": true,
       "checks": {
-        "display": true,
-        "candidates_none": true,
-        "needs_clarification": true
+        "status": true,
+        "understood": true
       },
       "details": {
-        "display": "Matar Kulcha",
+        "display": "",
         "candidates": []
       },
       "seconds": 0.01
@@ -203,7 +202,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.12
+      "seconds": 0.63
     },
     {
       "id": "recipe-chole-offline",
@@ -245,7 +244,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.03
+      "seconds": 0.05
     },
     {
       "id": "recipe-rajma-curry-offline",
@@ -266,7 +265,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.02
+      "seconds": 0.06
     },
     {
       "id": "recipe-aloo-gobi-offline",
@@ -287,7 +286,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.04
+      "seconds": 0.06
     },
     {
       "id": "recipe-vegetable-biryani-offline",
@@ -308,7 +307,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.04
+      "seconds": 0.06
     },
     {
       "id": "recipe-dal-makhani-scale",
@@ -324,7 +323,7 @@
         "mismatches": [],
         "checked": 18
       },
-      "seconds": 0.07
+      "seconds": 0.1
     },
     {
       "id": "cart-staples",
@@ -464,7 +463,7 @@
         "stage": "cart_review",
         "error": null
       },
-      "seconds": 0.05
+      "seconds": 0.07
     },
     {
       "id": "flow-chole-two",
@@ -482,7 +481,7 @@
         "stage": "cart_review",
         "error": null
       },
-      "seconds": 0.03
+      "seconds": 0.05
     },
     {
       "id": "flow-paneer-six",
@@ -500,7 +499,7 @@
         "stage": "cart_review",
         "error": null
       },
-      "seconds": 0.03
+      "seconds": 0.05
     },
     {
       "id": "flow-rajma-modifier-offline",
@@ -519,7 +518,7 @@
         "stage": "cart_review",
         "error": null
       },
-      "seconds": 0.04
+      "seconds": 0.03
     },
     {
       "id": "edge-empty-dish",
@@ -587,7 +586,7 @@
         "status": 200,
         "error": null
       },
-      "seconds": 0.04
+      "seconds": 0.03
     },
     {
       "id": "edge-weird-characters",
@@ -635,7 +634,7 @@
       "details": {
         "status": 422,
         "error": {
-          "message": "No recipe found for 'unicorn stew'.",
+          "message": "I don\u2019t have a reliable recipe for that dish yet. Pick one from the list or try another name.",
           "stage": "await_dish"
         }
       },
@@ -693,6 +692,157 @@
         "unmatched": []
       },
       "seconds": 0.0
+    },
+    {
+      "id": "dish-soya-chaap-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Soya Chaap",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-malai-chaap-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Malai Soy Chaap",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-paneer-tikka-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Paneer Tikka",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "suggest-empty-popular",
+      "suite": "suggest",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "count": true,
+        "first": true
+      },
+      "details": {
+        "names": [
+          "garlic naan",
+          "paneer butter masala",
+          "dal makhani",
+          "chole kulche",
+          "rajma chawal",
+          "aloo gobi",
+          "palak paneer",
+          "matar paneer"
+        ]
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "suggest-chaap",
+      "suite": "suggest",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "names": true
+      },
+      "details": {
+        "names": [
+          "soya chaap",
+          "malai soy chaap",
+          "afghani soy chaap",
+          "tandoori soy chaap"
+        ]
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "suggest-malai-chaap",
+      "suite": "suggest",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "names": true
+      },
+      "details": {
+        "names": [
+          "malai soy chaap"
+        ]
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "suggest-paneer",
+      "suite": "suggest",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "names_include": true,
+        "names_exclude": true
+      },
+      "details": {
+        "names": [
+          "paneer tikka",
+          "paneer bhurji",
+          "paneer paratha",
+          "paneer lababdar",
+          "paneer do pyaza",
+          "paneer butter masala",
+          "kadai paneer",
+          "matar paneer"
+        ]
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "suggest-unknown",
+      "suite": "suggest",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "count": true
+      },
+      "details": {
+        "names": []
+      },
+      "seconds": 0.01
     }
   ]
 }

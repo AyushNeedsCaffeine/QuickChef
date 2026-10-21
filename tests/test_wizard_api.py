@@ -48,14 +48,27 @@ def test_dish_understood(client, session):
     assert body["modifiers"] is False
 
 
+def test_llm_display_uses_canonical_name(client, session, monkeypatch):
+    parsed = graph_mod.ParsedInput(
+        dish="kale chane", canonical_dish="Kala Chana", source="llm"
+    )
+    monkeypatch.setattr(main_mod, "parse_input", lambda _raw: parsed)
+    r = client.post(f"/api/dish/{session}", json={"dish": "kale chane"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["dish"] == "Kala Chana"
+    assert body["display"] == "Kala Chana"
+
+
 def test_dish_preserves_modifiers(client, session):
     r = client.post(f"/api/dish/{session}", json={"dish": "Rajma without onion garlic"})
     assert r.status_code == 200
     body = r.json()
     assert body["understood"] is True
-    assert body["dish"] == "Rajma without onion garlic"
+    assert body["dish"].startswith("Rajma Curry")
+    assert "without onion garlic" in body["dish"]
     assert body["modifiers"] is True
-    assert "Without" in body["display"]
+    assert body["display"] == "Rajma Without Onion Garlic"
 
 
 def test_servings_offline_modifier_sets_notice(client, session):
@@ -96,7 +109,7 @@ def test_servings_builds_cart_and_recipe(client, session):
 def test_servings_unknown_dish(client, session):
     r = client.post(f"/api/servings/{session}", json={"dish": "unicorn stew", "servings": 3})
     assert r.status_code == 422
-    assert "No recipe" in r.json()["message"]
+    assert "reliable recipe" in r.json()["message"]
 
 
 def test_session_view_reflects_state(client, session):
@@ -104,7 +117,7 @@ def test_session_view_reflects_state(client, session):
     r = client.get(f"/api/session/{session}")
     assert r.status_code == 200
     body = r.json()
-    assert body["dish"] == "chole"
+    assert body["dish"] == "Chole"
     assert body["servings"] == 2
     assert len(body["cart"]["items"]) > 0
 
@@ -226,6 +239,56 @@ def test_learned_synonym_skips_parse_llm(client, session, monkeypatch):
 def test_synonym_validation(client):
     assert client.post("/api/synonyms", json={"term": "", "canonical": "Chole Kulche"}).status_code == 422
     assert client.post("/api/synonyms", json={"term": "Matar Kulcha", "canonical": ""}).status_code == 422
+
+
+def test_unknown_dish_is_rejected(client, session):
+    r = client.post(f"/api/dish/{session}", json={"dish": "Sushi"})
+    assert r.status_code == 422
+    assert r.json()["understood"] is False
+    assert "reliable recipe" in r.json()["message"]
+
+
+def test_custom_unknown_dish_is_rejected(client, session):
+    r = client.post(f"/api/dish/{session}", json={"dish": "Unicorn stew", "custom": True})
+    assert r.status_code == 422
+    assert "reliable recipe" in r.json()["message"]
+
+
+def test_custom_known_dish_is_accepted(client, session):
+    r = client.post(f"/api/dish/{session}", json={"dish": "Paneer Tikka", "custom": True})
+    assert r.status_code == 200
+    assert r.json()["dish"] == "Paneer Tikka"
+    assert r.json()["custom"] is True
+
+
+def test_suggest_endpoint_chaap_and_and_semantics(client):
+    chaap = client.get("/api/dish/suggest", params={"q": "chaap"}).json()["results"]
+    assert [item["name"] for item in chaap] == [
+        "Soya Chaap",
+        "Malai Soy Chaap",
+        "Afghani Soy Chaap",
+        "Tandoori Soy Chaap",
+    ]
+    malai = client.get("/api/dish/suggest", params={"q": "malai chaap"}).json()["results"]
+    assert [item["name"] for item in malai] == ["Malai Soy Chaap"]
+    paneer = client.get("/api/dish/suggest", params={"q": "paneer"}).json()["results"]
+    assert "Paneer Tikka" in [item["name"] for item in paneer]
+    assert "Soya Chaap" not in [item["name"] for item in paneer]
+
+
+def test_suggest_endpoint_empty_and_unknown(client):
+    popular = client.get("/api/dish/suggest", params={"limit": 4}).json()["results"]
+    assert [item["name"] for item in popular] == ["Garlic Naan", "Paneer Butter Masala", "Dal Makhani", "Chole Kulche"]
+    assert client.get("/api/dish/suggest", params={"q": "unicorn"}).json()["results"] == []
+
+
+def test_homepage_has_typeahead_and_no_photo_ui(client):
+    html = client.get("/").text
+    assert 'id="dish-suggestions"' in html
+    assert 'id="custom-dish-input"' in html
+    assert 'id="brand-home"' in html
+    assert "recipe-photo" not in html
+    assert "dc-media" not in html
 
 
 def test_photo_endpoint(client, monkeypatch):

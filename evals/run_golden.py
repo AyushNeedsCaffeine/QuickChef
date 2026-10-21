@@ -54,6 +54,7 @@ def run_dish(client: TestClient, case) -> dict:
             "modifiers": False,
             "error": body,
         }
+    body["status"] = response.status_code
     return body
 
 
@@ -66,6 +67,16 @@ def _quantities(recipe: dict) -> dict[str, float]:
         except (TypeError, ValueError):
             quantities[name] = 0.0
     return quantities
+
+
+def run_suggest(client: TestClient, case) -> dict:
+    response = client.get(
+        "/api/dish/suggest",
+        params={"q": case.input.get("q", ""), "limit": int(case.input.get("limit") or 8)},
+    )
+    body = response.json()
+    body["status"] = response.status_code
+    return body
 
 
 def run_recipe(client: TestClient, case) -> dict:
@@ -177,6 +188,8 @@ def run_case(client: TestClient, case) -> dict:
         return run_dish(client, case)
     if case.suite == "recipe":
         return run_recipe(client, case)
+    if case.suite == "suggest":
+        return run_suggest(client, case)
     if case.suite == "cart":
         return run_cart(case)
     if case.suite == "flow":

@@ -370,7 +370,20 @@ def ask_servings(state: AgentState) -> dict:
 
 
 def extract(state: AgentState) -> dict:
-    dish = state["dish"]
+    dish = recipes.catalog_name(state["dish"])
+    if not dish:
+        reply = (
+            "I don’t have a reliable recipe for that dish yet. "
+            "Pick a dish from the menu or try another name."
+        )
+        return {
+            "dish": None,
+            "steps": [],
+            "stage": "await_dish",
+            "error": f"No catalogue recipe for '{state['dish']}'.",
+            "reply": reply,
+            "messages": [AIMessage(content=reply)],
+        }
     servings = int(state["servings"])
     recipe = resolve_recipe(dish, servings)
     if not recipe or not recipe.ingredients:

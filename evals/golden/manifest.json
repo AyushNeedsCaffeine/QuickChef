@@ -1,18 +1,19 @@
 {
-  "version": 1,
+  "version": 2,
   "name": "QuickChef golden dataset",
-  "description": "Curated dish resolution, recipe, cart, flow, photo and edge cases for QuickChef.",
+  "description": "Curated dish resolution, typeahead, recipe, cart, flow, photo and edge cases for QuickChef.",
   "created": "2026-10-20",
   "cases_file": "cases.jsonl",
   "counts": {
-    "total": 68,
+    "total": 76,
     "by_mode": {
-      "offline": 35,
+      "offline": 43,
       "live": 33
     },
     "by_suite": {
-      "dish": 22,
+      "dish": 25,
       "recipe": 18,
+      "suggest": 5,
       "cart": 6,
       "flow": 6,
       "photo": 8,
@@ -33,12 +34,14 @@
     "live": "python -m evals.run_golden --live",
     "dish_live": "python -m evals.run_golden --live --suite dish",
     "photos": "python -m evals.run_golden --live --suite photo",
-    "list": "python -m evals.run_golden --list"
+    "list": "python -m evals.run_golden --list",
+    "suggest": "python -m evals.run_golden --suite suggest"
   },
   "notes": [
-    "Matar Kulcha is the key colloquial case: the canonical dish stays Matar Kulcha and the card must offer Chole Kulche, rather than silently mapping.",
-    "Offline modifier flows document the known limitation: the fallback recipe cannot honour exclusions, so the API returns a notice.",
-    "Photo cases check metadata and cache behaviour, not visual identity. A wrong photo is still a manual-review risk.",
+    "Matar Kulcha remains a live ambiguity case: the canonical dish stays Matar Kulcha and the card must offer Chole Kulche.",
+    "Catalogue-only v2: unknown dishes are rejected with HTTP 422; the LLM is never asked to invent a recipe for them.",
+    "Typeahead cases are deterministic and verify AND semantics for paneer/chaap searches.",
+    "Photo cases remain backend-only: photos are no longer shown in the wizard, but the photo service is retained.",
     "Baselines live in evals/baselines and are written with --write-baseline."
   ]
 }

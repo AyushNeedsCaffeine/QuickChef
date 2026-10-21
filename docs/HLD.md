@@ -1,7 +1,7 @@
 # High-Level Design (HLD)
 
 **Project:** QuickChef — Recipe-to-Cart Shopping Agent
-**Version:** 1.0
+**Version:** 2.0
 **Companion documents:** [SRS](./SRS.md), [LLD](./LLD.md)
 
 ---
@@ -16,10 +16,11 @@ QuickChef is a two-tier web application:
 
 The agent performs recipe research (ingredients + cooking steps) and cart building; the cart is then handed to a
 **human-in-the-loop (HITL)** checkpoint implemented with LangGraph's `interrupt()`.
-Before any recipe work, the UI confirms the dish with the user using a cached Wikimedia photo,
-the canonical name, and, for ambiguous names, LLM-proposed catalog candidates. Confirmed
-corrections are learned in a local synonym store. The user edits the cart over REST, then selects
-a mock payment method to resume the graph and place the order.
+Before any recipe work, the UI offers live catalogue typeahead, then confirms the canonical dish
+without a photo; for ambiguous names it offers catalogue candidates, and an uncatalogued custom
+dish is rejected. Only catalogue-resolved dishes reach recipe generation. Confirmed corrections
+are learned in a local synonym store. The user edits the cart over REST, then selects a mock payment
+method to resume the graph and place the order.
 
 ---
 
@@ -96,27 +97,29 @@ flowchart TB
 
 | Layer | Module | Responsibility |
 |-------|--------|----------------|
-| Presentation | `templates/`, `static/` | 4-step wizard (dish, servings, review, payment), recipe + cart rendering, catalog search |
+| Presentation | `templates/`, `static/` | 4-step wizard (dish typeahead, servings, review, payment), recipe + cart rendering, catalog search |
 | API | `app/main.py` | HTTP routing, session wiring, wizard orchestration, response shaping |
 | Agent | `app/agent/graph.py` | Conversational state machine, LLM parse/match/extract, clarify node, HITL pause/resume, cached `resolve_recipe()` |
-| Agent | `app/agent/recipes.py` | Keyless fallback recipes + cooking steps |
+| Agent | `app/agent/recipes.py` | Curated dish catalogue, deterministic typeahead, and keyless fallback recipes |
 | Agent | `app/agent/state.py` | Typed shared state (incl. `preparsed`, `candidates`, `needs_clarification`, `steps`, `recipe_source`) |
 | Service | `app/services/catalog.py` | Product storage + strict name/alias/token resolution |
 | Service | `app/services/matcher.py` | Ingredient → SKU conversion; pantry items excluded |
 | Service | `app/services/pack_selector.py` | Quantity/unit → pack selection |
 | Service | `app/services/cart.py` | Cart mutation, totals, order creation (with payment method) |
 | Service | `app/services/synonyms.py` | Learned dish-name corrections, atomic JSON store |
-| Service | `app/services/photos.py` | Canonical-name Wikimedia photo search, title relevance filtering, local cache + attribution |
+| Service | `app/services/photos.py` | Optional backend-only Wikimedia photo search, title relevance filtering, local cache + attribution |
 | Service | `app/services/feedback.py` | Best-effort, append-only JSONL capture of dish and review feedback for golden-dataset review |
 | Data | `app/models.py` | Pydantic domain models |
 | Config | `app/config.py` | Env-driven settings |
 
 **Wizard orchestration.** The UI is a linear wizard; the backend exposes purpose-built endpoints rather than only free-form chat:
-- **Step 1 (Dish):** `POST /api/dish/{id}` checks learned synonyms first (no LLM), otherwise calls
-  `parse_input()` plus `suggest_catalog_matches()` for unknown names. It returns the display name,
-  candidates and clarification flag; the UI shows a photo card and waits for **Yes, cook this**.
-  **Not this dish** appends a `dish_rejected` event; the next accepted candidate/dish appends a
-  linked `dish_correction` event.
+- **Step 1 (Dish):** the UI calls `GET /api/dish/suggest?q=` for deterministic catalogue
+  typeahead (AND semantics; no photos). `POST /api/dish/{id}` checks learned synonyms first (no
+  LLM), resolves known catalogue dishes, and may return candidates for a specific correction. It
+  returns the display name, candidates and clarification flag; uncatalogued dishes are rejected
+  with HTTP 422 in both normal and custom mode. The UI shows a no-photo confirmation card and waits
+  for **Continue**. **Change dish** appends a `dish_rejected` event; the next accepted
+  candidate/dish appends a linked `dish_correction` event.
 - **Step 2 (Servings):** `POST /api/servings/{id}` resets any paused HITL state (`_reset_if_paused`) and invokes the graph once with a synthetic message `"I want to cook {dish} for {n} people"`, so dish + servings enter together and no stale state lingers.
 - **Step 3 (Review):** cart is mutated through the cart endpoints; the recipe (including the `unmatched` list) is read from graph state and rendered beside the cart. The feedback bar captures an overall recipe + basket like/dislike (dislikes are queued for review).
 - **Step 4 (Payment):** `POST /api/order/{id}/pay` resumes the graph with the chosen method and delivery address and places the order.
@@ -151,7 +154,7 @@ stateDiagram-v2
 
 | Node | Purpose | Terminal? |
 |------|---------|-----------|
-| `understand` | Parse the latest message → `dish`, `servings`, `candidates` | No |
+| `understand` | Parse the latest message → catalogue-validated `dish`, `servings`, `candidates` | No |
 | `ask_dish` | Ask for a dish | Yes (ends turn) |
 | `clarify` | Present up to 3 “Did you mean…” candidates | Yes (ends turn) |
 | `ask_servings` | Ask for servings | Yes (ends turn) |
@@ -170,22 +173,21 @@ sequenceDiagram
     participant A as FastAPI
     participant G as LangGraph Agent
     participant L as LLM (optional)
-    participant P as Photos
     participant M as Matcher
     participant C as CartService
 
     U->>A: POST /api/session
     A-->>U: session_id
-    Note over U,A: Step 1 — Dish confirmation
-    U->>A: POST /api/dish "Dal Makhni"
-    A->>A: synonyms.lookup → parse_input / match
-    A->>P: get cached photo for "Dal Makhani"
-    P-->>A: photo URL + artist/license
-    A-->>U: {display:"Dal Makhani", candidates, photo}
-    opt ambiguous name
+    Note over U,A: Step 1 — Dish typeahead + confirmation (no photo)
+    U->>A: GET /api/dish/suggest?q=dal
+    A-->>U: catalogue suggestions
+    U->>A: POST /api/dish {dish:"Dal Makhni"}
+    A->>A: synonyms.lookup → parse_input / catalogue validation
+    A-->>U: {display:"Dal Makhani", candidates}
+    opt ambiguous or corrected name
         U->>A: POST /api/synonyms {term, canonical}
     end
-    U->>U: tap "Yes, cook this"
+    U->>U: tap "Continue"
     Note over U,A: Step 2 — Servings
     U->>A: POST /api/servings {dish, servings:4}
     A->>A: _reset_if_paused()
@@ -220,7 +222,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    Dish["Wizard: dish"] --> Confirm{Dish confirmation\nphoto + canonical + candidates}
+    Dish["Wizard: dish typeahead"] --> Confirm{Dish confirmation\ncanonical + candidates, no photo}
     Confirm -->|candidate picked| Learn[(data/synonyms.json)]
     Confirm -->|not this dish| Feedback[(evals/golden/feedback.jsonl)]
     Learn --> Parse
@@ -283,7 +285,8 @@ flowchart LR
 
 - Single process; started with `uvicorn app.main:app`.
 - External dependencies: Groq API (optional — offline mode without a key) and Wikimedia Commons
-  (optional photo enrichment). Downloaded photos live under `static/dish_photos/`.
+  (optional backend-only photo enrichment). Downloaded photos live under the gitignored
+  `static/dish_photos/`; the wizard does not call this path.
 - No database required for the demo; learned synonyms persist in `data/synonyms.json`.
   Reviewed feedback appends to `evals/golden/feedback.jsonl` (gitignored; promoted manually).
 
@@ -292,13 +295,15 @@ flowchart LR
 ## 9. Cross-Cutting Concerns
 
 - **Configuration:** all tunables (fees, model, key) via environment variables (`app/config.py`).
-- **Error handling:** unknown dish → `POST /api/servings` returns HTTP 422 and the wizard returns to Step 1; empty-cart payment → HTTP 400; unmatched ingredients → surfaced, non-fatal; pantry items (`Water`, `Ice`) are reported separately and never carted.
+- **Error handling:** uncatalogued dish → `POST /api/dish` or `/api/servings` returns HTTP 422 before any recipe generation and the wizard stays on Step 1; empty-cart payment → HTTP 400; unmatched ingredients → surfaced, non-fatal; pantry items (`Water`, `Ice`) are reported separately and never carted.
 - **Wizard state safety:** `_reset_if_paused` cancels a pending HITL review before rebuilding, so going back to change servings never leaves a stale paused graph.
-- **Extensibility:** catalog is data-driven; new dishes are covered by the LLM automatically. Offline mode only works for `recipes.py` fallbacks — new dishes such as Kala Chana, Pumpkin Sabzi, and Maggi Noodles are deliberately LLM-only.
+- **Extensibility:** catalog is data-driven and the typeahead/dishes list live in `recipes.py`. A recipe
+  is generated only for a catalogue-resolved dish, so adding a dish requires both a catalogue entry
+  and an LLM/fallback recipe path. Offline mode only works for `recipes.py` fallbacks.
 - **Modifications:** free-text dish qualifiers (`without onion garlic`, `with mushrooms`) are preserved end-to-end and honoured by the LLM; offline mode builds the closest base recipe and surfaces a notice.
-- **Observability & regression:** LangSmith tracing is env-driven (`LANGSMITH_TRACING` + `LANGSMITH_API_KEY`); graph runs carry `run_name`, tags and per-session metadata. `evals/run_evals.py` scores the resolver against a LangSmith dataset. The curated 68-case golden dataset (`evals/run_golden.py`) adds a deterministic offline gate plus opt-in live LLM/photo suites. User feedback is queued separately (`evals/golden_feedback.py`) and promoted only after review (`evals/promote_feedback.py`); `evals/run_feedback.py` replays captured dish rejections against the current resolver.
-- **Rate limits / external failures:** Groq 429s are retried once then degrade to heuristics/offline; Wikimedia failures are cached briefly and rendered as a placeholder rather than blocking the wizard. Feedback writes are best-effort and return `stored:false` on failure.
-- **Dish confirmation:** a photo card prevents silent mis-resolution; ambiguous names produce candidates instead of a hard-coded alias mapping, and user choices are learned. Photo titles are scored against canonical dish tokens, with people/decorations and weak overlaps rejected so a missing photo wins over a wrong one.
+- **Observability & regression:** LangSmith tracing is env-driven (`LANGSMITH_TRACING` + `LANGSMITH_API_KEY`); graph runs carry `run_name`, tags and per-session metadata. `evals/run_evals.py` scores the resolver against a LangSmith dataset. The curated 76-case golden dataset (`evals/run_golden.py`) adds a deterministic offline gate plus opt-in live LLM/photo suites. User feedback is queued separately (`evals/golden_feedback.py`) and promoted only after review (`evals/promote_feedback.py`); `evals/run_feedback.py` replays captured dish rejections against the current resolver.
+- **Rate limits / external failures:** Groq 429s are retried once then degrade to heuristics/offline; optional photo failures are cached briefly and never block the wizard. Feedback writes are best-effort and return `stored:false` on failure.
+- **Dish confirmation:** deterministic typeahead plus catalogue validation prevents silent mis-resolution and invented recipes; ambiguous names produce candidates instead of a hard-coded alias mapping, and specific user choices are learned. The no-photo card removes image latency and misattribution risk from the critical path.
 - **Upgrade path:** replace in-memory cart/checkpoints with Redis/Postgres; replace mock catalog with a real commerce adapter implementing the same service interface; replace mock payment with a real gateway behind the same endpoint.
 
 ---

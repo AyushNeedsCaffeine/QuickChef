@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
-SUITES = ("dish", "recipe", "cart", "flow", "photo", "edge")
+SUITES = ("dish", "recipe", "suggest", "cart", "flow", "photo", "edge")
 MODES = ("offline", "live")
 
 

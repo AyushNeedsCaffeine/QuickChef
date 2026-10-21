@@ -31,7 +31,7 @@ from app.services.catalog import get_catalog
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-app = FastAPI(title="QuickChef", version="1.0.0")
+app = FastAPI(title="QuickChef", version="2.0.0")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -154,25 +154,49 @@ def get_session(session_id: str):
     }
 
 
+UNKNOWN_DISH_MESSAGE = (
+    "I don’t have a reliable recipe for that dish yet. "
+    "Pick one from the list or try another name."
+)
+
+
+def _dish_response(raw: str, canonical: str, *, source: str, custom: bool = False) -> dict:
+    modified = recipes.has_modifiers(raw)
+    return {
+        "understood": True,
+        "dish": canonical,
+        "display": canonical if not recipes.has_modifiers(raw) else recipes.display_name(raw),
+        "raw": raw,
+        "modifiers": modified,
+        "candidates": [],
+        "needs_clarification": False,
+        "source": source,
+        "custom": custom,
+    }
+
+
+@app.get("/api/dish/suggest")
+def suggest_dish(q: str = "", limit: int = 8):
+    return {"results": [{"name": name} for name in recipes.search_dishes(q, limit=limit)]}
+
+
 @app.post("/api/dish/{session_id}")
 def submit_dish(session_id: str, body: DishRequest):
     raw = body.dish.strip()
     if not raw:
         return JSONResponse(status_code=422, content={"understood": False, "message": "Please enter a dish name."})
 
-    modified = recipes.has_modifiers(raw)
     learned = synonyms.lookup(raw)
     if learned:
-        return {
-            "understood": True,
-            "dish": learned,
-            "display": learned,
-            "raw": raw,
-            "modifiers": modified,
-            "candidates": [],
-            "needs_clarification": False,
-            "source": "synonym",
-        }
+        canonical = recipes.catalog_name(learned)
+        if canonical:
+            return _dish_response(raw, canonical, source="synonym")
+
+    if body.custom:
+        canonical = recipes.catalog_name(raw)
+        if not canonical:
+            return JSONResponse(status_code=422, content={"understood": False, "message": UNKNOWN_DISH_MESSAGE})
+        return _dish_response(raw, canonical, source="catalog", custom=True)
 
     parsed = parse_input(raw)
     if not parsed.dish:
@@ -181,10 +205,8 @@ def submit_dish(session_id: str, body: DishRequest):
             content={"understood": False, "message": "I couldn't understand that dish. Try something like 'Dal Makhani'."},
         )
 
-    canonical = (parsed.canonical_dish or parsed.dish).strip()
-    if parsed.source != "llm":
-        canonical = raw
-    seen = {canonical.lower()}
+    canonical = recipes.catalog_name(parsed.canonical_dish or parsed.dish or raw)
+    seen = {(parsed.canonical_dish or parsed.dish or raw).lower()}
     candidates = []
     for candidate in parsed.candidates:
         name = (candidate.name or "").strip()
@@ -199,16 +221,20 @@ def submit_dish(session_id: str, body: DishRequest):
             }
         )
 
-    display = canonical if parsed.source == "llm" else recipes.display_name(raw)
+    if not canonical and not candidates:
+        return JSONResponse(status_code=422, content={"understood": False, "message": UNKNOWN_DISH_MESSAGE})
+
+    dish = canonical or (parsed.canonical_dish or parsed.dish or raw).strip()
     return {
         "understood": True,
-        "dish": canonical,
-        "display": display,
+        "dish": dish,
+        "display": dish if not recipes.has_modifiers(raw) else recipes.display_name(raw),
         "raw": raw,
-        "modifiers": modified,
+        "modifiers": recipes.has_modifiers(raw),
         "candidates": candidates,
         "needs_clarification": bool(candidates),
         "source": parsed.source,
+        "custom": False,
     }
 
 
@@ -314,7 +340,13 @@ def submit_servings(session_id: str, body: ServingsRequest):
     raw_dish = body.dish.strip()
     if not raw_dish:
         return JSONResponse(status_code=422, content={"message": "Please choose a dish first."})
-    dish = synonyms.lookup(raw_dish) or raw_dish
+    learned = synonyms.lookup(raw_dish) or raw_dish
+    dish = recipes.catalog_name(learned)
+    if not dish:
+        return JSONResponse(
+            status_code=422,
+            content={"message": UNKNOWN_DISH_MESSAGE, "stage": "await_dish"},
+        )
     _reset_if_paused(session_id)
     message = f"I want to cook {dish} for {body.servings} people"
     result = graph.invoke(

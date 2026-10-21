@@ -1,7 +1,7 @@
 # Low-Level Design (LLD)
 
 **Project:** QuickChef — Recipe-to-Cart Shopping Agent
-**Version:** 1.0
+**Version:** 2.0
 **Companion documents:** [SRS](./SRS.md), [HLD](./HLD.md)
 
 ---
@@ -25,13 +25,13 @@ QuickChef/
 │       ├── pack_selector.py # quantity → pack selection
 │       ├── cart.py          # CartService (cart + orders)
 │       ├── synonyms.py      # learned user dish corrections
-│       ├── photos.py        # Wikimedia Commons photo search/cache
+│       ├── photos.py        # optional Wikimedia photo backend (not used by wizard)
 │       └── feedback.py      # append-only feedback queue (JSONL)
 ├── data/catalog.json        # seed product catalog
 ├── data/synonyms.json       # learned corrections (runtime)
 ├── templates/index.html     # UI shell
 ├── static/{style.css,script.js,dish-placeholder.svg}
-├── static/dish_photos/      # cached attributed photo files
+├── static/dish_photos/      # optional local photo cache (gitignored)
 ├── evals/
 │   ├── golden/              # cases.jsonl + manifest/schema + feedback queue
 │   ├── baselines/           # offline/live results baselines
@@ -93,8 +93,8 @@ class Order(BaseModel):
 Request bodies:
 - `ChatRequest{message}` — legacy conversational entry.
 - `CartAddRequest{product_id, quantity}`, `CartUpdateRequest{quantity}`, `ConfirmRequest{address}`.
-- `DishRequest{dish}` — wizard step 1 (dish input).
-- `ServingsRequest{dish, servings}` — wizard step 2; `servings` validated `1..100`.
+- `DishRequest{dish, custom=false}` — wizard step 1; `custom` enables the explicit custom-dish path.
+- `ServingsRequest{dish, servings, custom=false}` — wizard step 2; `servings` validated `1..100`.
 - `PayRequest{method, address="Home"}` — wizard step 4; `method` ∈ `{upi, card, cod}`.
 
 ---
@@ -238,7 +238,7 @@ def learn(term: str, canonical: str) -> str
 def all_learned() -> dict[str, str]
 ```
 
-Learned corrections back the “Did you mean…?” confirmation card. Keys/values are
+Learned corrections back the “Did you mean…?” candidate card. Keys/values are
 whitespace-collapsed and case-insensitive (`_norm`); writes are serialized with a lock and
 performed atomically (`tmp` + `os.replace`). The file is a plain `{term: canonical}` JSON map.
 `POST /api/dish` checks `lookup(raw)` **before** `parse_input`, so a learned correction costs
@@ -266,8 +266,8 @@ def find_photo(dish: str) -> dict
 - Metadata cache: `data/photo_cache.json`; successful entries use `PHOTO_CACHE_TTL`, misses use
   the shorter `PHOTO_FAILURE_TTL`. `PHOTO_USER_AGENT` must include a contact URL/email or
   Wikimedia returns `403`.
-- The UI displays artist/license and links the credit to `source_url`; failures return
-  `kind="none"` and the placeholder SVG.
+- This service is retained as an optional backend API. The v2 wizard does not call it, display
+  photos, or wait for attribution; failures return `kind="none"` without affecting the wizard.
 
 ---
 
@@ -315,7 +315,7 @@ class AgentState(TypedDict, total=False):
     dish: str | None
     servings: int | None
     preparsed: bool             # wizard already resolved dish + servings
-    candidates: list[dict]      # possible dishes for the confirmation card
+    candidates: list[dict]      # possible dishes for the no-photo confirmation card
     needs_clarification: bool
     ingredients: list[dict]
     steps: list[str]            # ordered cooking steps
@@ -418,6 +418,13 @@ graph.invoke(Command(resume={"action": "confirm"|"cancel"}), config={"configurab
 
 ### 10.7 Fallback Recipes (`recipes.py`)
 
+`DISH_POPULAR` / `POPULAR_DISHES` now include 31 additional catalogue dishes such as paneer
+tikka/lababdar, soy-chaap variants, butter chicken, biryani, egg dishes, dal tadka/fry, and
+parathas. `search_dishes(query, limit=8)` is the deterministic typeahead: it applies AND semantics
+across meaningful tokens, allows the last token to be a prefix, tolerates one-token typo/fuzzy
+matches at ratio ≥0.85, filters generic words, and prioritises exact/prefix matches. Empty input
+returns the popular catalogue list. It never calls the LLM.
+
 `FALLBACK_RECIPES` holds portions for 4 servings for popular dishes
 (`dal makhani`, `paneer butter masala`, `rajma curry`, `chole`, `aloo gobi`,
 `vegetable biryani`, `vegetable poha`). `get_fallback_recipe(dish)` matches by
@@ -462,11 +469,12 @@ same canonical dish. Helpers:
 |----------|---------|---------|
 | `POST /api/session` | 200 new `session_id` | — |
 | `GET /api/session/{sid}` | 200 `{...session, recipe, cart}` | — |
-| `POST /api/dish/{sid}` | 200 `{understood, dish, display, raw, modifiers, candidates, needs_clarification}`; learned synonyms skip the LLM | 422 empty/unknown dish |
-| `GET /api/dish/photo?dish=` | 200 `{kind, dish, url, source, source_url, artist, license}` or `{kind:"none", reason}` | 422 missing dish |
+| `GET /api/dish/suggest?q=&limit=` | 200 `{results:[{name}]}`; empty `q` returns popular dishes; limit clamped 1–12 | — |
+| `POST /api/dish/{sid}` | 200 `{understood, dish, display, raw, modifiers, candidates, needs_clarification, source, custom}`; learned synonyms skip the LLM; catalogue-only validation | 422 empty/unknown or custom non-catalogue dish |
+| `GET /api/dish/photo?dish=` | Optional backend photo `{kind, dish, url, source, source_url, artist, license}` or `{kind:"none", reason}` | 422 missing dish |
 | `POST /api/synonyms` | 200 `{ok, learned}` after validating `{term, canonical}` | 422 empty term/canonical |
 | `POST /api/feedback/{sid}` | 200 `{ok, stored, id, status}`; review likes/dislikes require a recipe + cart snapshot | 422 empty rejection raw / missing correction `parent_id`+`accepted_dish`; review without snapshot returns `stored:false` |
-| `POST /api/servings/{sid}` | 200 `{recipe, cart, paused, stage}` after building; resolves the dish through learned synonyms and passes `preparsed=True` | 422 recipe not found → wizard returns to Step 1 |
+| `POST /api/servings/{sid}` | 200 `{recipe, cart, paused, stage}` after building; resolves the dish through learned synonyms and passes `preparsed=True` | 422 uncatalogued dish or recipe not found → wizard returns to Step 1 |
 | `POST /api/chat/{sid}` | 200 `{reply, stage, dish, servings, paused}`; if paused returns a review reminder | — |
 | `GET /api/cart/{sid}` | 200 `{items, totals}` | — |
 | `POST /api/cart/{sid}/items` | 200 updated cart | 404 unknown product |
@@ -496,18 +504,21 @@ Step 1 also renders a **slow right-to-left marquee** of 16 dish cards (`#food-tr
 `translateX(-50%)` loop, pauses on hover/focus, and each card fills the dish box and submits it.
 A fixed, decorative **steaming-bowl** doodle (`.food-float`) floats bottom-right.
 
-Client state: `{ sessionId, dish, display, rawDish, candidates, photo, servings, cart, recipe,
-paused, maxStep }`; a monotonic `photoToken` discards stale photo responses.
+Client state: `{ sessionId, dish, display, rawDish, candidates, customDish, servings, cart, recipe,
+paused, maxStep }`. No photo state or image requests remain. Typeahead uses a debounced
+`GET /api/dish/suggest`, an abortable request, an active index for keyboard navigation, and a
+final “Something else” option that reveals the custom input.
 
 Key flows:
 - **Boot:** `newSession()` → `POST /api/session`; `setServings(4)`; show step 1.
-- **Step 1:** `submitDish(raw)` → `POST /api/dish/{sid}` → `showDishConfirm()` renders
-  `#dish-confirm` with the canonical name, a cached photo + attribution link, and up to three
-  candidate cards (`renderDishCandidates`). Candidate click updates the dish and
-  `POST /api/synonyms`; **Yes, cook this** advances to step 2 and links a pending rejection to
-  the accepted dish (`dish_correction`); **Not this dish** clears the card, focuses the input,
-  and captures `dish_rejected`. Photos load through `GET /api/dish/photo`; failures use
-  `static/dish-placeholder.svg`, not a wrong image.
+- **Step 1:** `inputDish` → debounced typeahead (`renderDishSuggestions`) with Up/Down/Enter/Escape,
+  popular dishes on empty focus, and “Something else” → `#custom-dish-wrap`. `submitDish(raw)` →
+  `POST /api/dish/{sid}` → `showDishConfirm()` renders `#dish-confirm` with the canonical name
+  and up to three candidate cards (`renderDishCandidates`), no photo. Candidate click updates the
+  dish and `POST /api/synonyms`; **Continue** advances to step 2 and links a pending rejection to
+  the accepted dish (`dish_correction`); **Change dish** clears the card, focuses the input, and
+  captures `dish_rejected`. Unknown/custom non-catalogue dishes show inline error + toast and never
+  create a recipe request.
 - **Step 2:** slider (1–20) / typed value (1–100) set `servings`; `submitServings()` →
   `POST /api/servings/{sid} {dish, servings}` → store `recipe`+`cart`, render review,
   advance to step 3. On 422, show the error and return to step 1.
@@ -522,7 +533,8 @@ Key flows:
 - **Step 4:** `renderPayment()` builds the summary; the address input (`#address-input`,
   default "Home") is sent with `pay()` → `POST /api/order/{sid}/pay` `{method, address}` →
   `renderDone(order)` → `screen-done`.
-- **Start over:** reset client state, `newSession()`, show step 1.
+- **Start over / logo:** `resetWizard()` cancels any paused review, clears client state, calls
+  `newSession()`, shows step 1, and focuses the dish input. The logo (`#brand-home`) uses the same path.
 - The stepper allows navigating back to already-completed steps.
 
 ---
@@ -532,12 +544,13 @@ Key flows:
 | Condition | Behaviour |
 |-----------|-----------|
 | LLM unavailable | Fall back to heuristics + offline corpus (NFR-3) |
+| Uncatalogued dish | `POST /api/dish` or `/api/servings` → 422 with `UNKNOWN_DISH_MESSAGE`; no LLM recipe call; wizard stays on/returns to Step 1 |
 | Recipe not found | `POST /api/servings` → 422; `dish` reset to `None`, `error` set; wizard returns to Step 1 |
 | Empty dish (step 1) | `POST /api/dish` → 422 with a helpful message |
 | Ambiguous dish | `POST /api/dish` returns `candidates` + `needs_clarification`; UI asks the user |
 | Learned correction | `synonyms.lookup` returns the canonical name before `parse_input` (no LLM call) |
 | Feedback write fails / disabled | `POST /api/feedback` returns `{ok:true, stored:false, reason}`; the UI ignores it and keeps shopping |
-| Photo missing/blocked | `GET /api/dish/photo` → `{kind:"none"}`; UI shows the placeholder SVG |
+| Photo missing/blocked | Optional `GET /api/dish/photo` → `{kind:"none"}`; no wizard impact |
 | Groq 429 / transient error | `_structured` retries once, then falls back to heuristics/offline |
 | Ingredient not in catalog | Added to `unmatched`, reported, non-fatal |
 | Dish has a modifier in offline mode | Base recipe built from the corpus; `recipe.notice` warns the modification needs the AI chef |
@@ -565,8 +578,8 @@ Key flows:
 | `test_synonyms.py` | normalization, learn/lookup, persistence, atomic store, duplicate overwrite |
 | `test_feedback.py` | rejection/correction capture, review snapshots, validation, disabled/write-failure best effort, text caps, frontend hooks |
 | `test_photos.py` | canonical query/title scoring, people/decorations rejection, cache hits, allowlisted downloads, attribution, failure TTL |
-| `test_golden.py` | 68-case loader, unique ids, manifest counts, evaluator checks, `display_not`/`matched_not`, feedback loader/promotion, cache-isolated offline subprocess gate |
-| `test_wizard_api.py` | HTTP wizard flow via `TestClient`: session, dish normalize, candidate payload, learned synonym skips LLM, modifier notice, servings→recipe+cart, photo endpoint, unknown dish 422, cart mutation, pay, address, cancel, chat reminder, static assets |
+| `test_golden.py` | 76-case loader, unique ids, manifest counts, suggest evaluator, `display_not`/`matched_not`, feedback loader/promotion, cache-isolated offline subprocess gate |
+| `test_wizard_api.py` | HTTP wizard flow via `TestClient`: session, typeahead, dish normalize, candidate payload, learned synonym skips LLM, custom known/unknown dish, catalogue-only 422, modifier notice, servings→recipe+cart, photo backend, cart mutation, pay, address, cancel, logo reset, chat reminder, static assets |
 
 The agent and wizard tests monkeypatch `get_llm → None` (via `app.agent.graph`) for
 deterministic offline execution. Feedback tests also isolate `FEEDBACK_PATH` and `STORE_PATH` to

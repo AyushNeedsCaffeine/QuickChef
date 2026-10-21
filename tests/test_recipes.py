@@ -20,7 +20,8 @@ def test_catalog_resolution_is_strict():
     assert recipes.catalog_name("Masala Dosa") == "Masala Dosa"
     assert recipes.catalog_name("Rajma") == "Rajma Curry"
     assert recipes.catalog_name("Matar Kulcha") is None
-    assert recipes.catalog_name("Paneer Tikka") is None
+    assert recipes.catalog_name("Paneer Tikka") == "Paneer Tikka"
+    assert recipes.catalog_name("Malai Chaap") == "Malai Soy Chaap"
 
 
 def test_no_false_fallback_matches():
@@ -106,3 +107,27 @@ def test_has_modifiers():
     assert recipes.has_modifiers("Chole extra paneer") is True
     assert recipes.has_modifiers("dal makhni") is False
     assert recipes.has_modifiers("Paneer Butter Masala") is False
+
+
+def test_dish_search_uses_and_semantics():
+    assert recipes.search_dishes("chaap") == [
+        "Soya Chaap",
+        "Malai Soy Chaap",
+        "Afghani Soy Chaap",
+        "Tandoori Soy Chaap",
+    ]
+    assert recipes.search_dishes("malai chaap") == ["Malai Soy Chaap"]
+    assert "Soya Chaap" not in recipes.search_dishes("paneer")
+    assert recipes.search_dishes("paneer tikk") == ["Paneer Tikka"]
+    assert recipes.search_dishes("unicorn") == []
+
+
+def test_dish_search_empty_returns_popular_and_generic_returns_nothing():
+    assert recipes.search_dishes("", limit=4) == recipes.POPULAR_DISHES[:4]
+    assert recipes.search_dishes("curry") == []
+
+
+def test_new_dishes_are_catalogue_only_without_offline_fallbacks():
+    for dish in ("Paneer Tikka", "Shahi Paneer", "Malai Soy Chaap", "Butter Chicken"):
+        assert recipes.catalog_name(dish) == dish
+        assert recipes.get_fallback_recipe(dish) is None

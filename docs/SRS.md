@@ -1,10 +1,10 @@
 # Software Requirements Specification (SRS)
 
 **Project:** QuickChef — Recipe-to-Cart Shopping Agent
-**Version:** 1.0
+**Version:** 2.0
 **Status:** Approved for implementation
 **Standard:** IEEE 830-style
-**Date:** 2026-10-16
+**Date:** 2026-10-21
 
 ---
 
@@ -21,8 +21,10 @@ or remove items, and places the order.
 ### 1.2 Scope
 QuickChef is a demonstration-grade system consisting of:
 - A **4-step wizard UI**: (1) Dish → (2) Servings → (3) Review (recipe + cart + bill) → (4) Payment.
-- A **dish confirmation card** with a cached Wikimedia photo, canonical name, and yes/no actions.
-- **Ambiguity handling** via LLM-proposed catalog candidates and a local learned-synonym store.
+- A **live dish typeahead** over a curated catalogue, a custom-dish escape hatch, and a canonical
+  confirmation card without photos.
+- **Catalogue-only recipe generation** with explicit rejection of uncatalogued dishes.
+- **Ambiguity handling** via catalogue candidates and a local learned-synonym store.
 - A wizard-driven agent backend that collects the **dish** and **servings**.
 - A recipe resolver that converts a dish + servings into a structured ingredient list, quantities, and **cooking steps**.
 - A catalog matcher that maps ingredients to real SKUs (with pack sizes and prices).
@@ -73,7 +75,7 @@ and the catalog is a bundled mock dataset.
 
 ### 2.2 Product Functions (summary)
 1. Guide the user through a **4-step wizard**: Dish → Servings → Review → Payment.
-2. Collect the dish name and show a **photo confirmation card** once it is understood.
+2. Collect the dish name with **live catalogue suggestions**, then show a no-photo confirmation card once it is understood.
 3. Collect the number of servings via a **slider** (1–20, default 4) or a typed value (up to 100).
 4. Resolve the recipe (ingredients + scaled quantities + cooking steps).
 5. Match each ingredient to a catalog SKU and choose pack sizes.
@@ -90,11 +92,11 @@ and the catalog is a bundled mock dataset.
 - CON-2: Recipe quality and coverage depend on the LLM; an offline fallback corpus covers common dishes for keyless operation.
 - CON-3: State is held in memory; restarting the server clears sessions.
 - CON-4: Ordered quantities are always whole packs (retail constraint).
-- CON-5: Dish photos depend on Wikimedia Commons availability; the system must degrade to a placeholder.
+- CON-5: The optional backend photo service depends on Wikimedia Commons availability; the wizard itself must not depend on photos.
 
 ### 2.5 Assumptions and Dependencies
-- ASM-1: The user provides a recognizable dish name; ambiguous names can be clarified by choosing a candidate.
-- ASM-4: Wikimedia Commons can be reached when photo enrichment is enabled; otherwise photos are omitted.
+- ASM-1: The user provides a recognizable dish name; ambiguous names can be clarified by choosing a catalogue candidate, and custom dishes must still resolve to a catalogue entry.
+- ASM-4: Wikimedia Commons can be reached when the optional backend photo service is used; the wizard does not call it.
 - ASM-2: The LLM (when enabled) returns well-structured ingredient data.
 - ASM-3: The mock catalog is representative enough for the dishes under evaluation.
 - DEP-1: Python 3.11+ runtime; internet access only when an LLM is enabled.
@@ -119,15 +121,17 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | FR-2.1 | The system SHALL normalize the dish name from the user's input. | M |
-| FR-2.2 | On the dish step the system SHALL confirm the understood dish with a photo card showing the canonical display name and explicit Yes/No actions. | M |
+| FR-2.2 | On the dish step the system SHALL confirm the understood dish with a no-photo card showing the canonical display name and explicit continue/change actions. | M |
 | FR-2.7 | The system SHALL return up to three plausible catalog candidates for ambiguous names instead of silently remapping them. | M |
 | FR-2.8 | The user SHALL be able to choose a candidate; the system SHALL learn the correction for future lookups. | M |
 | FR-2.9 | The system SHALL NOT call the LLM when a learned correction already exists for the exact dish term. | S |
-| FR-2.10 | The system SHALL return an attributed dish photo when available, and a placeholder when not; it SHALL NOT return a clearly wrong photo. | S |
+| FR-2.10 | The system SHALL retain an optional attributed photo API, but the wizard SHALL NOT request or display dish photos. | S |
+| FR-2.11 | The system SHALL provide live dish suggestions from the curated catalogue as the user types, using AND semantics for multiple words. | M |
+| FR-2.12 | The system SHALL allow a custom-dish path, but SHALL reject any dish that is not in the curated catalogue with HTTP 422 and SHALL NOT generate a recipe for it. | M |
 | FR-2.3 | The servings step SHALL default to 4 and allow selection from 1–20 via a slider. | M |
 | FR-2.4 | The servings step SHALL allow typing an exact value from 1–100. | S |
 | FR-2.5 | The system SHALL accept the dish and servings together when entering the servings step. | M |
-| FR-2.6 | If the dish cannot be resolved at the servings step, the system SHALL return an error and route the user back to the dish step. | M |
+| FR-2.6 | If the dish is not in the catalogue at the servings step, the system SHALL return HTTP 422 and route the user back to the dish step before any recipe generation. | M |
 
 ### 3.3 Recipe Resolution (Step 3a)
 | ID | Requirement | Priority |
@@ -189,7 +193,7 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 
 ### 4.1 User Interfaces
 - **UI-1:** Browser-based single page implementing a 4-step wizard with a progress stepper: **Dish → Servings → Review → Payment**.
-- **UI-2:** Step 1 (Dish) — text input with quick-pick suggestion chips; shows a photo confirmation card with canonical name, attribution link, **Yes, cook this / Not this dish**, and candidate cards for ambiguous names; or an error message.
+- **UI-2:** Step 1 (Dish) — text input with live catalogue suggestions, keyboard navigation, a final “Something else” custom-dish option, and quick-pick chips; shows a no-photo confirmation card with the canonical name, **Continue / Change dish**, candidate cards for ambiguous names, or an inline error plus toast for uncatalogued dishes.
 - **UI-3:** Step 2 (Servings) — slider (1–20, default 4), an optional exact-number input (1–100), and a Confirm action.
 - **UI-4:** Step 3 (Review) — a full recipe card (ingredients + cooking steps) beside the cart, with per-item quantity controls, a Remove action, and a catalog search to add items. Unmatched ingredients are shown as a notice.
 - **UI-5:** Step 3 shows subtotal, delivery, handling and total with a live bill, plus **Cancel order** and **Proceed to Payment** actions.
@@ -204,8 +208,9 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 | GET | `/api/health` | Health/readiness + LLM status |
 | POST | `/api/session` | Create a session |
 | GET | `/api/session/{session_id}` | Fetch current session state (dish, servings, stage, cart, recipe, paused) |
-| POST | `/api/dish/{session_id}` | Resolve/confirm the understood dish; returns candidates + clarification flag (wizard step 1) |
-| GET | `/api/dish/photo?dish=` | Fetch a cached, attributed Wikimedia photo for the confirmation card |
+| GET | `/api/dish/suggest?q=&limit=` | Deterministic catalogue typeahead with AND semantics |
+| POST | `/api/dish/{session_id}` | Resolve/confirm the dish `{dish, custom?}`; returns candidates or HTTP 422 when uncatalogued |
+| GET | `/api/dish/photo?dish=` | Optional attributed photo backend; not used by the wizard |
 | POST | `/api/synonyms` | Learn a user dish correction `{term, canonical}` |
 | POST | `/api/feedback/{session_id}` | Capture `dish_rejected`, `dish_correction`, `review_liked`, or `review_disliked` (best-effort) |
 | POST | `/api/servings/{session_id}` | Resolve recipe for dish + servings and build the cart (wizard step 2) |
@@ -223,7 +228,8 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 ### 4.3 Communication Interfaces
 - HTTP/1.1, JSON request/response bodies.
 - Optional outbound HTTPS to the Groq API when an LLM key is configured.
-- Optional outbound HTTPS to Wikimedia Commons for dish photos; images are cached locally.
+- Optional outbound HTTPS to Wikimedia Commons for the retained backend photo API; the wizard does
+  not call it.
 
 ---
 
@@ -241,7 +247,7 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 | NFR-8 | Testability | Core logic SHALL be unit-testable without network access. |
 | NFR-9 | Security | API keys SHALL be read from environment variables and never logged or committed. |
 | NFR-10 | Observability | The system SHALL expose a health endpoint and process logs. |
-| NFR-11 | Resilience | Photo lookup failures SHALL NOT block dish confirmation; failed lookups SHALL be retried after a short backoff window. |
+| NFR-11 | Resilience | Optional backend photo lookup failures SHALL NOT block dish confirmation; failed lookups SHALL be retried after a short backoff window. The wizard does not depend on photos. |
 | NFR-12 | Regression | The system SHALL include a deterministic offline golden dataset and a live suite for LLM/photo paths. |
 | NFR-13 | Resilience | Feedback capture SHALL be best-effort; a disabled queue or storage failure SHALL NOT block dish confirmation, cart review, or payment. |
 
@@ -251,7 +257,7 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 
 ### UC-1: Build cart from a recipe via the wizard (primary success scenario)
 **Actor:** Home cook · **Preconditions:** App running.
-1. **Step 1 — Dish:** User types "Dal Makhani" (or picks a chip). System resolves it, loads an attributed photo, and shows the confirmation card. User taps **Yes, cook this**.
+1. **Step 1 — Dish:** User types "Dal Makhani" (or picks a live suggestion/chip). System resolves it and shows the no-photo confirmation card. User taps **Continue**.
 2. **Step 2 — Servings:** User sets servings to 4 (slider or typed). System resolves the recipe (ingredients + steps), scales to 4, matches each ingredient to a SKU, selects packs, and fills the cart.
 3. **Step 3 — Review:** System shows the full recipe (ingredients + cooking steps) beside editable ingredient cards and a live bill (**HITL**). User optionally adds/removes/updates items.
 4. **Step 4 — Payment:** User selects a mock method (UPI/Card/COD) and pays.
@@ -269,7 +275,7 @@ Extends UC-1 step 3. User removes a matched ingredient; totals update.
 Extends UC-1. After the cart is built the user returns to Step 2 and changes servings; the system resets the pending review and rebuilds the cart for the new servings without duplication.
 
 ### UC-5: Unrecognized dish
-1. User types "Unicorn stew." 2. System cannot resolve a recipe at the servings step (HTTP 422), shows an error, and routes the user back to Step 1. No cart is created.
+1. User types "Unicorn stew." 2. The system rejects the uncatalogued dish immediately (HTTP 422) and shows a clear message; no recipe LLM call or cart is created.
 
 ### UC-6: Cancel the pending order
 Extends UC-1 step 3. The user clicks **Cancel order**; the system resumes the paused agent with `cancel`, discards the review, and returns the user to Step 1 with a fresh session. No order is created.
@@ -283,8 +289,9 @@ Extends UC-1 step 3. The recipe contains an ingredient not present in the catalo
 3. The card asks "Did you mean…"; the user picks a candidate (the correction is learned) or rejects the card and retypes.
 4. The wizard proceeds only after an explicit confirmation; no silent remapping occurs.
 
-### UC-9: Dish photo unavailable
-Extends UC-1 step 1. Wikimedia returns no safe match or is unreachable. The card shows the placeholder image and still allows confirmation; the wizard is not blocked.
+### UC-9: Optional backend photo unavailable
+The wizard no longer displays dish photos. A direct call to `/api/dish/photo` may still return
+`kind:none` for an uncached or unsafe match; this never blocks dish confirmation or cart building.
 
 ### UC-10: Capture dish feedback for golden-dataset review
 1. On the confirmation card the user taps **Not this dish**; the system appends a `dish_rejected` event with the raw input, suggestion, candidates, and source.
@@ -304,7 +311,7 @@ Extends UC-1 step 1. Wikimedia returns no safe match or is unreachable. The card
 | AC-4 | Changing quantity to 0 removes the item. | FR-5.3, FR-5.4 |
 | AC-5 | Paying creates an order (id prefix `QC`), records the method, clears the cart, and returns a bill. | FR-6.1, FR-6.3, FR-6.7 |
 | AC-6 | Placing an order on an empty cart returns an error. | FR-6.4 |
-| AC-7 | An unrecognized dish yields HTTP 422 and no order. | FR-3.4, FR-2.6, UC-5 |
+| AC-7 | An uncatalogued dish yields HTTP 422 at the dish step, no recipe LLM call, and no order. | FR-3.4, FR-2.6, FR-2.12, UC-5 |
 | AC-8 | The system resolves aliases (e.g. "pyaz" → Onion) and fuzzy dish names ("dal makhni" → Dal Makhani). | FR-4.1, FR-3.5 |
 | AC-9 | With no LLM key, supported dishes still produce a cart and recipe. | NFR-3, FR-3.5 |
 | AC-10 | All unit tests pass without network access. | NFR-8 |
@@ -315,11 +322,13 @@ Extends UC-1 step 1. Wikimedia returns no safe match or is unreachable. The card
 | AC-15 | The `/api/servings` response includes an `unmatched` list; unmatched ingredients are shown on the Review screen. | FR-4.5, UC-7 |
 | AC-16 | Paying with an address records that address on the order. | FR-6.7 |
 | AC-17 | An ambiguous dish returns candidates and requires explicit confirmation; learned choices are reused without an LLM call. | FR-2.7, FR-2.8, FR-2.9, UC-8 |
-| AC-18 | The confirmation card shows a photo with attribution when available, otherwise a placeholder, and never blocks the flow. | FR-2.10, NFR-11, UC-9 |
+| AC-18 | The confirmation card shows no photo and never calls the photo API; the optional backend photo endpoint still works independently. | FR-2.10, NFR-11, UC-9 |
 | AC-19 | The offline golden dataset passes deterministically with no network access; its count matches the manifest. | NFR-12, NFR-8 |
 | AC-20 | A dish rejection/correction and a review dislike are appended to the feedback queue with the expected fields; a write failure returns `stored:false` without blocking the flow. | NFR-13, UC-10 |
 | AC-21 | A recipe containing kale leaves, dry chickpeas, and water never matches coriander leaves, chana dal, or rose water; water is excluded from the cart. | FR-4.1, FR-4.7 |
-| AC-22 | The photo for Maggi resolves to a Maggi noodles image and Pumpkin to a pumpkin dish image, never a person or decorative pumpkin; weak matches return a placeholder. | FR-2.10, NFR-11 |
+| AC-22 | If the optional backend photo API is called, Maggi/Pumpkin resolve to relevant images (never a person or decorative item) and weak matches return `{kind:"none"}`. | FR-2.10, NFR-11 |
+| AC-23 | Typing `malai chaap` returns only Malai Soy Chaap; `chaap` returns all chaap variants; `paneer` returns paneer dishes. | FR-2.11, UC-8 |
+| AC-24 | A custom dish that is not in the catalogue yields HTTP 422, while a custom known dish resolves and proceeds. | FR-2.12, UC-5 |
 
 ---
 

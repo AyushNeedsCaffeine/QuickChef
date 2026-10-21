@@ -58,11 +58,13 @@ class ChatRequest(BaseModel):
 
 class DishRequest(BaseModel):
     dish: str
+    custom: bool = False
 
 
 class ServingsRequest(BaseModel):
     dish: str
     servings: int = Field(ge=1, le=100)
+    custom: bool = False
 
 
 class CartAddRequest(BaseModel):

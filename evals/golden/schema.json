@@ -13,7 +13,7 @@
     },
     "suite": {
       "type": "string",
-      "enum": ["dish", "recipe", "cart", "flow", "photo", "edge"]
+      "enum": ["dish", "recipe", "suggest", "cart", "flow", "photo", "edge"]
     },
     "mode": {
       "type": "string",

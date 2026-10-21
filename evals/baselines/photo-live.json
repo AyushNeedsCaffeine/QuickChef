@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-10-21T04:23:52.282948+00:00",
+  "generated_at": "2026-10-21T09:11:22.717716+00:00",
   "mode": "live",
   "summary": {
     "total": 8,
@@ -8,7 +8,7 @@
     "failed": 0,
     "mean_score": 1.0,
     "min_score": 1.0,
-    "seconds": 11.81,
+    "seconds": 24.72,
     "mode": "live"
   },
   "results": [
@@ -29,7 +29,7 @@
         "url": "/static/dish_photos/chole-kulche.jpg",
         "reason": null
       },
-      "seconds": 3.43
+      "seconds": 8.92
     },
     {
       "id": "photo-matar-kulcha",
@@ -48,7 +48,7 @@
         "url": "/static/dish_photos/matar-kulcha.jpg",
         "reason": null
       },
-      "seconds": 0.95
+      "seconds": 2.15
     },
     {
       "id": "photo-dal-makhani",
@@ -67,7 +67,7 @@
         "url": "/static/dish_photos/dal-makhani.jpg",
         "reason": null
       },
-      "seconds": 1.1
+      "seconds": 3.04
     },
     {
       "id": "photo-paneer-butter-masala",
@@ -86,7 +86,7 @@
         "url": "/static/dish_photos/paneer-butter-masala.jpg",
         "reason": null
       },
-      "seconds": 1.1
+      "seconds": 2.34
     },
     {
       "id": "photo-unknown",
@@ -102,7 +102,7 @@
         "url": null,
         "reason": "no confident photo"
       },
-      "seconds": 0.94
+      "seconds": 1.7
     },
     {
       "id": "photo-live-maggi",
@@ -121,7 +121,7 @@
         "url": "/static/dish_photos/maggi-noodles.jpg",
         "reason": null
       },
-      "seconds": 1.65
+      "seconds": 2.59
     },
     {
       "id": "photo-live-pumpkin",
@@ -140,7 +140,7 @@
         "url": "/static/dish_photos/pumpkin-sabzi.jpg",
         "reason": null
       },
-      "seconds": 1.03
+      "seconds": 1.81
     },
     {
       "id": "photo-live-kala-chana",
@@ -159,7 +159,7 @@
         "url": "/static/dish_photos/kala-chana.jpg",
         "reason": null
       },
-      "seconds": 1.6
+      "seconds": 2.17
     }
   ]
 }

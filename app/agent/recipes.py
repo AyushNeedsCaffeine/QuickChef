@@ -42,11 +42,42 @@ POPULAR_DISHES = [
     "Masala Chana",
     "Pumpkin Sabzi",
     "Maggi Noodles",
+    "Shahi Paneer",
+    "Paneer Lababdar",
+    "Paneer Tikka",
+    "Paneer Bhurji",
+    "Paneer Do Pyaza",
+    "Kadai Paneer",
+    "Chilli Paneer",
+    "Afghani Soy Chaap",
+    "Malai Soy Chaap",
+    "Tandoori Soy Chaap",
+    "Soya Chaap",
+    "Butter Chicken",
+    "Chicken Biryani",
+    "Chicken Curry",
+    "Chicken 65",
+    "Egg Curry",
+    "Egg Fried Rice",
+    "Veg Fried Rice",
+    "Veg Manchurian",
+    "Dal Tadka",
+    "Dal Fry",
+    "Aloo Matar",
+    "Bhindi Masala",
+    "Baingan Bharta",
+    "Aloo Paratha",
+    "Paneer Paratha",
+    "Upma",
+    "Vegetable Poha",
+    "Kadhi Chawal",
+    "Kheer",
+    "Gajar Halwa",
 ]
 
 
-def dish_catalog() -> list[str]:
-    """Names the dish resolver may suggest. Populated from the UI + offline corpus."""
+def _ordered_catalog() -> list[str]:
+    """Curated dishes first, then any fallback-only names, without token duplicates."""
     catalog: list[str] = []
     seen: set[frozenset[str]] = set()
     for name in list(POPULAR_DISHES) + [key.title() for key in FALLBACK_RECIPES]:
@@ -55,7 +86,82 @@ def dish_catalog() -> list[str]:
             continue
         seen.add(tokens)
         catalog.append(name)
-    return sorted(catalog)
+    return catalog
+
+
+def dish_catalog() -> list[str]:
+    """Names the dish resolver may suggest. Populated from the UI + offline corpus."""
+    return sorted(_ordered_catalog())
+
+
+_SEARCH_STOPWORDS = {"dish", "recipe", "meal", "curry", "sabzi", "food", "something", "else"}
+
+
+def _search_token_match(query_token: str, name_token: str, *, prefix: bool) -> bool:
+    if query_token == name_token:
+        return True
+    if prefix and len(query_token) >= 2 and name_token.startswith(query_token):
+        return True
+    if len(query_token) >= 3:
+        return difflib.SequenceMatcher(None, query_token, name_token).ratio() >= 0.85
+    return False
+
+
+def search_dishes(query: str, limit: int = 8) -> list[str]:
+    """Deterministic, catalogue-only search for the live dish typeahead.
+
+    Every meaningful query token must match a token in the dish name (AND
+    semantics). The last token may be a prefix so results appear while typing.
+    Generic words such as ``curry`` do not reduce a search to a single dish.
+    """
+    limit = max(1, min(int(limit), 12))
+    raw = (query or "").strip()
+    ordered = _ordered_catalog()
+    if not raw:
+        return ordered[:limit]
+
+    query_tokens = [token for token in _norm(raw).split() if token not in _SEARCH_STOPWORDS]
+    if not query_tokens:
+        return []
+
+    scored: list[tuple[float, str]] = []
+    for name in ordered:
+        name_tokens = _norm(name).split()
+        if not name_tokens:
+            continue
+        matches = True
+        exact = 0
+        matched_tokens: set[str] = set()
+        for index, query_token in enumerate(query_tokens):
+            is_last = index == len(query_tokens) - 1
+            hit = next(
+                (token for token in name_tokens if _search_token_match(query_token, token, prefix=is_last)),
+                None,
+            )
+            if hit is None:
+                matches = False
+                break
+            matched_tokens.add(hit)
+            if query_token in name_tokens:
+                exact += 1
+        if not matches:
+            continue
+
+        normalized_name = _norm(name)
+        normalized_query = " ".join(query_tokens)
+        if normalized_name == normalized_query:
+            score = 1000.0
+        elif normalized_name.startswith(normalized_query):
+            score = 800.0
+        else:
+            score = 500.0
+        score += exact * 20
+        score -= len(set(name_tokens) - matched_tokens) * 15
+        score -= abs(len(name_tokens) - len(query_tokens)) * 5
+        scored.append((score, name))
+
+    scored.sort(key=lambda item: (-item[0], len(item[1]), item[1]))
+    return [name for _, name in scored[:limit]]
 
 
 def split_modifiers(dish: str) -> tuple[str, str]:

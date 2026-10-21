@@ -56,7 +56,7 @@ def test_dish_rejection_is_captured(client, session):
     assert event["needs_review"] is True
     assert event["status"] == "pending_review"
     assert event["dish"]["raw"] == "dal makhni"
-    assert event["dish"]["suggested_dish"] == "dal makhni"
+    assert event["dish"]["suggested_dish"] == "Dal Makhani"
     assert event["dish"]["display"] == "Dal Makhani"
     assert event["dish"]["source"] == "heuristic"
     assert body["id"] == event["id"]
@@ -123,7 +123,7 @@ def test_review_like_and_dislike_capture_snapshots(client, session):
         assert event["recipe"]["steps"]
         assert event["cart"]["items"]
         assert event["cart"]["totals"]["total"] > 0
-        assert event["dish"]["dish"] == "dal makhni"
+        assert event["dish"]["dish"] == "Dal Makhani"
 
 
 def test_review_feedback_without_snapshot_is_not_stored(client):

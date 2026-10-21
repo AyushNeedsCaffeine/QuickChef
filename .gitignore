@@ -6,5 +6,7 @@ venv/
 .pytest_cache/
 *.egg-info/
 data/synonyms.json
+data/photo_cache.json
+static/dish_photos/
 evals/golden/feedback.jsonl
 evals/golden/*.tmp

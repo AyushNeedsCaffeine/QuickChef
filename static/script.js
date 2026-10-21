@@ -8,7 +8,7 @@ const state = {
   rejectionContext: null,
   reviewFeedbackSent: false,
   candidates: [],
-  photo: null,
+  custom: false,
   servings: 4,
   cart: { items: [], totals: {} },
   recipe: null,
@@ -23,7 +23,6 @@ const steps = Array.from(document.querySelectorAll(".step"));
 let currentStep = null;
 let bumpProductId = null;
 let lastTotal = null;
-let photoToken = 0;
 
 /* ---------- utils ---------- */
 async function api(path, options = {}) {
@@ -124,91 +123,122 @@ async function newSession() {
 }
 
 /* ---------- STEP 1 ---------- */
-const PLACEHOLDER_PHOTO = "/static/dish-placeholder.svg";
+const dishInput = el("dish-input");
+const customInput = el("custom-dish-input");
+const suggestionsBox = el("dish-suggestions");
+let suggestTimer = null;
+let suggestToken = 0;
+let activeSuggestion = -1;
+let toastTimer = null;
 
 function clearDishConfirm() {
-  photoToken += 1;
   el("dish-confirm").classList.add("hidden");
   el("dc-candidate-list").innerHTML = "";
   el("dc-candidates").classList.add("hidden");
-  el("dc-img").removeAttribute("src");
-  el("dc-img").classList.add("hidden");
-  el("dc-skeleton").classList.add("hidden");
-  el("dc-credit").textContent = "";
-  el("dc-credit").removeAttribute("href");
-  el("dc-credit").title = "";
-  el("recipe-photo").classList.add("hidden");
   state.candidates = [];
-  state.photo = null;
 }
 
-async function loadDishPhoto(name, img, skeleton, credit) {
-  const token = ++photoToken;
-  img.classList.add("hidden");
-  skeleton.classList.remove("hidden");
-  credit.textContent = "";
-  credit.removeAttribute("href");
-  credit.title = "";
-  try {
-    const p = await api(`/api/dish/photo?dish=${encodeURIComponent(name)}`);
-    if (token !== photoToken) return;
-    const real = p.kind === "photo" && p.url;
-    state.photo = real ? p.url : null;
-    img.onload = () => {
-      if (token !== photoToken) return;
-      img.classList.remove("hidden");
-      skeleton.classList.add("hidden");
-    };
-    img.onerror = () => {
-      if (token !== photoToken) return;
-      img.onerror = null;
-      state.photo = null;
-      img.src = PLACEHOLDER_PHOTO;
-      img.classList.remove("hidden");
-      skeleton.classList.add("hidden");
-      credit.textContent = "";
-      credit.removeAttribute("href");
-      credit.title = "";
-      el("recipe-photo").classList.add("hidden");
-    };
-    img.alt = real ? `${name} photo` : `${name} placeholder`;
-    img.src = state.photo || PLACEHOLDER_PHOTO;
-    if (real) {
-      credit.textContent = [p.artist, p.license].filter(Boolean).join(" · ");
-      credit.title = [p.source, p.artist, p.license].filter(Boolean).join(" · ");
-      if (p.source_url) credit.href = p.source_url;
-      el("recipe-photo").src = p.url;
-      el("recipe-photo").alt = `${name} photo`;
-      el("recipe-photo").classList.remove("hidden");
-    } else {
-      el("recipe-photo").classList.add("hidden");
+function showDishToast(message) {
+  const toast = el("dish-toast");
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add("hidden"), 5200);
+}
+
+function hideSuggestions() {
+  suggestionsBox.classList.add("hidden");
+  suggestionsBox.innerHTML = "";
+  dishInput.setAttribute("aria-expanded", "false");
+  dishInput.removeAttribute("aria-activedescendant");
+  activeSuggestion = -1;
+}
+
+function hideCustomDish() {
+  state.custom = false;
+  el("custom-dish-wrap").classList.add("hidden");
+  customInput.value = "";
+}
+
+function setActiveSuggestion(index) {
+  const options = Array.from(suggestionsBox.querySelectorAll(".dish-suggestion"));
+  if (!options.length) return;
+  activeSuggestion = (index + options.length) % options.length;
+  options.forEach((option, i) => {
+    const active = i === activeSuggestion;
+    option.classList.toggle("active", active);
+    if (active) {
+      dishInput.setAttribute("aria-activedescendant", option.id);
+      option.scrollIntoView({ block: "nearest" });
     }
-  } catch (err) {
-    if (token !== photoToken) return;
-    state.photo = null;
-    img.onerror = null;
-    img.src = PLACEHOLDER_PHOTO;
-    img.alt = `${name} placeholder`;
-    img.classList.remove("hidden");
-    skeleton.classList.add("hidden");
-    credit.removeAttribute("href");
-    el("recipe-photo").classList.add("hidden");
-  }
+  });
 }
 
-async function loadCandidatePhoto(name, img, placeholder) {
+function chooseSuggestion(name) {
+  dishInput.value = name;
+  hideSuggestions();
+  hideCustomDish();
+  submitDish(name);
+}
+
+function openCustomDish() {
+  hideSuggestions();
+  clearDishConfirm();
+  state.dish = null;
+  state.display = null;
+  state.rawDish = null;
+  dishInput.value = "";
+  el("dish-feedback").innerHTML = "";
+  state.custom = true;
+  el("custom-dish-wrap").classList.remove("hidden");
+  customInput.value = "";
+  customInput.focus();
+}
+
+function renderSuggestions(names) {
+  suggestionsBox.innerHTML = "";
+  names.forEach((name, index) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "dish-suggestion";
+    option.id = `dish-option-${index}`;
+    option.setAttribute("role", "option");
+    option.innerHTML = `<span>${esc(name)}</span><span class="suggestion-hint">Use this dish</span>`;
+    option.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      chooseSuggestion(name);
+    });
+    suggestionsBox.appendChild(option);
+  });
+
+  const custom = document.createElement("button");
+  custom.type = "button";
+  custom.className = "dish-suggestion custom";
+  custom.id = `dish-option-${names.length}`;
+  custom.setAttribute("role", "option");
+  custom.innerHTML = `<span><span class="plus">+</span> Something else / Add a different dish</span><span class="suggestion-hint">Not listed</span>`;
+  custom.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    openCustomDish();
+  });
+  suggestionsBox.appendChild(custom);
+
+  activeSuggestion = -1;
+  suggestionsBox.classList.remove("hidden");
+  dishInput.setAttribute("aria-expanded", "true");
+}
+
+async function loadSuggestions() {
+  if (state.custom) return;
+  const token = ++suggestToken;
   try {
-    const p = await api(`/api/dish/photo?dish=${encodeURIComponent(name)}`);
-    if (p.kind !== "photo" || !p.url) return;
-    img.loading = "lazy";
-    img.onload = () => {
-      img.classList.remove("hidden");
-      placeholder.classList.add("hidden");
-    };
-    img.alt = `${name} photo`;
-    img.src = p.url;
+    const data = await api(`/api/dish/suggest?q=${encodeURIComponent(dishInput.value.trim())}&limit=8`);
+    if (token !== suggestToken) return;
+    renderSuggestions((data.results || []).map((item) => item.name));
   } catch (err) {
-    console.warn("photo:", err.message);
+    if (token !== suggestToken) return;
+    console.warn("suggest:", err.message);
+    hideSuggestions();
   }
 }
 
@@ -221,34 +251,28 @@ function renderDishCandidates(candidates) {
     return;
   }
   el("dc-candidates").classList.remove("hidden");
-  state.candidates.slice(0, 3).forEach((c) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "dc-candidate";
-    btn.innerHTML = `
-      <span class="dc-candidate-media">
-        <span class="dc-candidate-ph">?</span>
-        <img class="hidden" alt="" />
-      </span>
-      <span class="dc-candidate-text">
-        <span class="dc-candidate-name">${esc(c.name)}</span>
-        ${c.description ? `<span class="dc-candidate-desc">${esc(c.description)}</span>` : ""}
-      </span>`;
-    btn.addEventListener("click", () => selectCandidate(c.name, btn));
-    list.appendChild(btn);
-    loadCandidatePhoto(c.name, btn.querySelector("img"), btn.querySelector(".dc-candidate-ph"));
+  state.candidates.slice(0, 3).forEach((candidate) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dc-candidate";
+    button.innerHTML = `
+      <span class="dc-candidate-name">${esc(candidate.name)}</span>
+      ${candidate.description ? `<span class="dc-candidate-desc">${esc(candidate.description)}</span>` : ""}`;
+    button.addEventListener("click", () => selectCandidate(candidate.name, button));
+    list.appendChild(button);
   });
 }
 
-async function selectCandidate(name, btn) {
+async function selectCandidate(name, button) {
   state.dish = name;
   state.display = name;
+  dishInput.value = name;
   void linkRejection(state.rawDish, name, name);
   el("dc-name").textContent = name;
   el("dc-desc").textContent = "We'll use this dish for your recipe.";
-  document.querySelectorAll(".dc-candidate").forEach((b) => b.classList.toggle("selected", b === btn));
+  el("dc-eyebrow").textContent = "Confirm your dish";
+  document.querySelectorAll(".dc-candidate").forEach((item) => item.classList.toggle("selected", item === button));
   el("servings-dish-label").innerHTML = `Cooking <b>${esc(name)}</b>`;
-  loadDishPhoto(name, el("dc-img"), el("dc-skeleton"), el("dc-credit"));
   if (state.rawDish) {
     try {
       await api("/api/synonyms", {
@@ -272,34 +296,41 @@ function showDishConfirm(data) {
     modifiers: data.modifiers,
     source: data.source,
   };
+  el("dc-eyebrow").textContent = data.candidates?.length ? "Did you mean…" : "Confirm your dish";
   el("dc-name").textContent = data.display || data.dish;
   el("dc-desc").textContent = data.candidates?.length
-    ? "Pick the dish you meant, or confirm this one."
+    ? "Pick the dish you meant, or continue with this one."
     : "We'll build a basket for this dish.";
   el("dish-confirm").classList.remove("hidden");
   renderDishCandidates(data.candidates || []);
-  loadDishPhoto(data.dish, el("dc-img"), el("dc-skeleton"), el("dc-credit"));
 }
 
-async function submitDish(raw) {
-  const fb = el("dish-feedback");
-  const btn = el("dish-btn");
-  if (btn.disabled) return;
-  btn.disabled = true;
+async function submitDish(raw, custom = false) {
+  const feedback = el("dish-feedback");
+  const button = el("dish-btn");
+  if (button.disabled) return;
+  button.disabled = true;
+  hideSuggestions();
   clearDishConfirm();
   state.dishContext = null;
   state.rawDish = raw;
-  setFeedback(fb, `<span class="spinner"></span> Understanding your dish…`);
+  setFeedback(feedback, `<span class="spinner"></span> Finding that dish…`);
   try {
-    const data = await api(`/api/dish/${state.sessionId}`, { method: "POST", body: JSON.stringify({ dish: raw }) });
+    const data = await api(`/api/dish/${state.sessionId}`, {
+      method: "POST",
+      body: JSON.stringify({ dish: raw, custom }),
+    });
     state.dish = data.dish;
     state.display = data.display;
-    setFeedback(fb, `<span class="understood"><span class="tick">✓</span> ${esc(data.display)}</span>`);
+    state.custom = false;
+    hideCustomDish();
+    setFeedback(feedback, `<span class="understood"><span class="tick">✓</span> ${esc(data.display)}</span>`);
     showDishConfirm(data);
   } catch (err) {
-    setFeedback(fb, esc(err.message), "error");
+    setFeedback(feedback, esc(err.message), "error");
+    showDishToast(err.message);
   } finally {
-    btn.disabled = false;
+    button.disabled = false;
   }
 }
 
@@ -312,32 +343,101 @@ el("dc-yes").addEventListener("click", () => {
   setFeedback(el("dish-feedback"), "");
   showStep(2);
 });
+
 el("dc-no").addEventListener("click", () => {
   const rejected = state.dishContext;
-  if (!rejected) return;
-  state.rejectionContext = rejected;
-  state.rejectionPromise = rejected
-    ? captureFeedback({ kind: "dish_rejected", ...rejected })
-    : null;
+  if (rejected) {
+    state.rejectionContext = rejected;
+    state.rejectionPromise = captureFeedback({ kind: "dish_rejected", ...rejected });
+  }
   state.dishContext = null;
   state.dish = null;
   state.display = null;
   state.rawDish = null;
   clearDishConfirm();
   setFeedback(el("dish-feedback"), "No problem — tell me the right dish.");
-  el("dish-input").focus();
-  el("dish-input").select();
+  dishInput.focus();
+  dishInput.select();
+  loadSuggestions();
 });
 
-el("dish-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const v = el("dish-input").value.trim();
-  if (v) submitDish(v);
+el("dish-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (state.custom) {
+    const customValue = customInput.value.trim();
+    if (customValue) submitDish(customValue, true);
+    return;
+  }
+  const value = dishInput.value.trim();
+  if (value) submitDish(value);
 });
-document.querySelectorAll(".chip-btn").forEach((b) =>
-  b.addEventListener("click", () => {
-    el("dish-input").value = b.dataset.dish;
-    submitDish(b.dataset.dish);
+
+dishInput.addEventListener("input", () => {
+  if (state.custom) hideCustomDish();
+  clearDishConfirm();
+  state.dish = null;
+  state.display = null;
+  state.rawDish = null;
+  setFeedback(el("dish-feedback"), "");
+  clearTimeout(suggestTimer);
+  suggestTimer = setTimeout(loadSuggestions, 160);
+});
+
+dishInput.addEventListener("focus", () => {
+  if (!state.custom) loadSuggestions();
+});
+
+dishInput.addEventListener("keydown", (event) => {
+  if (suggestionsBox.classList.contains("hidden")) {
+    if (event.key === "ArrowDown") {
+      loadSuggestions();
+      event.preventDefault();
+    }
+    return;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    setActiveSuggestion(activeSuggestion + 1);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    setActiveSuggestion(activeSuggestion - 1);
+  } else if (event.key === "Enter" && activeSuggestion >= 0) {
+    event.preventDefault();
+    const option = suggestionsBox.querySelectorAll(".dish-suggestion")[activeSuggestion];
+    if (option) option.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+  } else if (event.key === "Escape") {
+    hideSuggestions();
+  }
+});
+
+customInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    const value = customInput.value.trim();
+    if (value) submitDish(value, true);
+  }
+});
+
+el("custom-dish-btn").addEventListener("click", () => {
+  const value = customInput.value.trim();
+  if (value) submitDish(value, true);
+});
+el("custom-dish-cancel").addEventListener("click", () => {
+  hideCustomDish();
+  dishInput.value = "";
+  dishInput.focus();
+  loadSuggestions();
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".dish-search")) hideSuggestions();
+});
+
+document.querySelectorAll(".chip-btn").forEach((button) =>
+  button.addEventListener("click", () => {
+    dishInput.value = button.dataset.dish;
+    hideCustomDish();
+    submitDish(button.dataset.dish);
   })
 );
 
@@ -442,14 +542,6 @@ el("servings-back").addEventListener("click", () => showStep(1));
 function renderReview() {
   resetReviewFeedback();
   const r = state.recipe || {};
-  const photo = el("recipe-photo");
-  if (state.photo) {
-    photo.src = state.photo;
-    photo.alt = `${state.display || r.dish || "Dish"} photo`;
-    photo.classList.remove("hidden");
-  } else {
-    photo.classList.add("hidden");
-  }
   el("recipe-dish").textContent = state.display || r.dish || "—";
   el("recipe-servings").textContent = `for ${r.servings || state.servings} people`;
   el("recipe-source").textContent = r.source === "offline" ? "Offline recipe" : "AI-generated recipe";
@@ -586,12 +678,17 @@ el("add-search").addEventListener("input", () => {
 
 el("review-back").addEventListener("click", () => showStep(2));
 
-async function cancelOrder() {
+async function cancelPendingOrder() {
+  if (!state.paused) return;
   try {
     await api(`/api/cart/${state.sessionId}/cancel`, { method: "POST" });
   } catch (err) {
     console.warn("cancel:", err.message);
   }
+}
+
+async function resetWizard({ cancelPending = false, focus = false } = {}) {
+  if (cancelPending) await cancelPendingOrder();
   state.dish = null;
   state.display = null;
   state.rawDish = null;
@@ -602,14 +699,31 @@ async function cancelOrder() {
   state.dishContext = null;
   state.rejectionPromise = null;
   state.rejectionContext = null;
-  el("dish-input").value = "";
-  el("servings-feedback").innerHTML = "";
-  resetReviewFeedback();
+  state.candidates = [];
+  state.custom = false;
+  clearTimeout(suggestTimer);
+  hideSuggestions();
+  hideCustomDish();
   clearDishConfirm();
+  el("dish-input").value = "";
+  el("dc-eyebrow").textContent = "Confirm your dish";
+  el("dish-feedback").innerHTML = "";
+  el("dish-toast").classList.add("hidden");
+  el("servings-feedback").innerHTML = "";
+  el("add-search").value = "";
+  el("add-results").innerHTML = "";
+  el("address-input").value = "Home";
+  el("custom-toggle").checked = false;
+  el("custom-wrap").classList.add("hidden");
+  resetReviewFeedback();
+  setServings(4);
   await newSession();
   showStep(1);
+  if (focus) requestAnimationFrame(() => dishInput.focus());
 }
-el("cancel-order").addEventListener("click", cancelOrder);
+
+el("cancel-order").addEventListener("click", () => resetWizard({ cancelPending: true, focus: true }));
+el("brand-home").addEventListener("click", () => resetWizard({ cancelPending: true, focus: true }));
 
 async function sendReviewFeedback(kind, btn) {
   if (state.reviewFeedbackSent) return;
@@ -705,27 +819,7 @@ function renderDone(order) {
     </div>`;
 }
 
-el("start-over").addEventListener("click", async () => {
-  if (state.paused) await cancelOrder();
-  state.maxStep = 1;
-  state.dish = null;
-  state.display = null;
-  state.rawDish = null;
-  state.recipe = null;
-  state.cart = { items: [], totals: {} };
-  state.paused = false;
-  state.dishContext = null;
-  state.rejectionPromise = null;
-  state.rejectionContext = null;
-  el("dish-input").value = "";
-  el("address-input").value = "Home";
-  el("servings-feedback").innerHTML = "";
-  resetReviewFeedback();
-  clearDishConfirm();
-  setServings(4);
-  await newSession();
-  showStep(1);
-});
+el("start-over").addEventListener("click", () => resetWizard({ cancelPending: true, focus: true }));
 
 /* ---------- stepper navigation ---------- */
 steps.forEach((s) =>

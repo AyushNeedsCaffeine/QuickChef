@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-10-21T04:23:05.378952+00:00",
+  "generated_at": "2026-10-21T09:10:11.948497+00:00",
   "mode": "live",
   "summary": {
     "total": 18,
@@ -8,7 +8,7 @@
     "failed": 0,
     "mean_score": 1.0,
     "min_score": 1.0,
-    "seconds": 35.88,
+    "seconds": 55.52,
     "mode": "live"
   },
   "results": [
@@ -31,7 +31,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.52
+      "seconds": 0.98
     },
     {
       "id": "recipe-chole-offline",
@@ -52,7 +52,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.03
+      "seconds": 0.04
     },
     {
       "id": "recipe-paneer-butter-masala-offline",
@@ -73,7 +73,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.02
+      "seconds": 0.04
     },
     {
       "id": "recipe-rajma-curry-offline",
@@ -115,7 +115,7 @@
         "steps": 6,
         "source": "offline"
       },
-      "seconds": 0.04
+      "seconds": 0.03
     },
     {
       "id": "recipe-vegetable-biryani-offline",
@@ -152,7 +152,7 @@
         "mismatches": [],
         "checked": 18
       },
-      "seconds": 0.08
+      "seconds": 0.07
     },
     {
       "id": "recipe-palak-paneer-live",
@@ -173,7 +173,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 5.0
+      "seconds": 5.84
     },
     {
       "id": "recipe-masala-dosa-live",
@@ -190,11 +190,11 @@
         "min_cart_items": true
       },
       "details": {
-        "ingredients": 15,
-        "steps": 6,
+        "ingredients": 11,
+        "steps": 5,
         "source": "llm"
       },
-      "seconds": 3.73
+      "seconds": 1.59
     },
     {
       "id": "recipe-chole-kulche-live",
@@ -211,11 +211,11 @@
         "min_cart_items": true
       },
       "details": {
-        "ingredients": 18,
-        "steps": 5,
+        "ingredients": 16,
+        "steps": 6,
         "source": "llm"
       },
-      "seconds": 2.33
+      "seconds": 2.16
     },
     {
       "id": "recipe-garlic-naan-live",
@@ -236,7 +236,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 2.16
+      "seconds": 2.02
     },
     {
       "id": "recipe-veg-hakka-noodles-live",
@@ -253,11 +253,11 @@
         "min_cart_items": true
       },
       "details": {
-        "ingredients": 10,
+        "ingredients": 11,
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 2.31
+      "seconds": 1.81
     },
     {
       "id": "recipe-rasmalai-live",
@@ -274,11 +274,11 @@
         "min_cart_items": true
       },
       "details": {
-        "ingredients": 8,
-        "steps": 7,
+        "ingredients": 9,
+        "steps": 4,
         "source": "llm"
       },
-      "seconds": 1.69
+      "seconds": 1.59
     },
     {
       "id": "recipe-pasta-live",
@@ -299,7 +299,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 1.61
+      "seconds": 2.69
     },
     {
       "id": "recipe-pav-bhaji-live",
@@ -316,11 +316,11 @@
         "min_cart_items": true
       },
       "details": {
-        "ingredients": 18,
+        "ingredients": 17,
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 2.46
+      "seconds": 8.85
     },
     {
       "id": "recipe-paneer-tikka-live",
@@ -341,7 +341,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 2.0
+      "seconds": 11.71
     },
     {
       "id": "recipe-rajma-modifier-live",
@@ -359,11 +359,11 @@
         "min_cart_items": true
       },
       "details": {
-        "ingredients": 13,
-        "steps": 6,
+        "ingredients": 12,
+        "steps": 5,
         "source": "llm"
       },
-      "seconds": 2.06
+      "seconds": 8.61
     },
     {
       "id": "recipe-live-kala-chana",
@@ -385,7 +385,7 @@
         "steps": 5,
         "source": "llm"
       },
-      "seconds": 9.77
+      "seconds": 7.41
     }
   ]
 }

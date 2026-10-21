@@ -15,7 +15,7 @@ def test_golden_cases_load_and_are_unique():
     ids = [case.id for case in cases]
     assert len(cases) == len(set(ids))
     assert len(cases) >= 50
-    assert {case.suite for case in cases} == {"dish", "recipe", "cart", "flow", "photo", "edge"}
+    assert {case.suite for case in cases} == {"dish", "recipe", "suggest", "cart", "flow", "photo", "edge"}
 
 
 def test_manifest_counts_match_cases():

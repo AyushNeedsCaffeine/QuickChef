@@ -253,6 +253,8 @@
     {"id": "pizza_base", "name": "Pizza Base", "category": "bakery", "aliases": ["pizza crust"],
      "packs": [{"size": 2, "unit": "pc", "price": 65}]},
     {"id": "pasta_sauce", "name": "Pasta Sauce", "category": "condiments", "aliases": ["white sauce", "red sauce", "marinara"],
-     "packs": [{"size": 400, "unit": "g", "price": 130}]}
+     "packs": [{"size": 400, "unit": "g", "price": 130}]},
+    {"id": "soya_chaap", "name": "Soya Chaap", "category": "frozen", "aliases": ["soy chaap", "chaap", "soya sticks", "soya malai chaap"],
+     "packs": [{"size": 250, "unit": "g", "price": 65}, {"size": 500, "unit": "g", "price": 120}]}
   ]
 }

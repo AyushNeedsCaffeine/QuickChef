@@ -64,6 +64,10 @@ def score_dish(expect: dict, actual: dict) -> dict:
     candidate_names = [norm(c.get("name") if isinstance(c, dict) else c) for c in candidates]
     checks: dict[str, bool] = {}
 
+    if "status" in expect:
+        checks["status"] = int(actual.get("status") or 0) == int(expect["status"])
+    if "understood" in expect:
+        checks["understood"] = bool(actual.get("understood")) == bool(expect["understood"])
     if "display" in expect:
         checks["display"] = norm(display) == norm(expect["display"])
     if "display_one_of" in expect:
@@ -82,6 +86,24 @@ def score_dish(expect: dict, actual: dict) -> dict:
     if "modifiers" in expect:
         checks["modifiers"] = bool(actual.get("modifiers")) == bool(expect["modifiers"])
     return _result(checks, {"display": display, "candidates": candidate_names})
+
+
+def score_suggest(expect: dict, actual: dict) -> dict:
+    results = actual.get("results") or []
+    names = [norm(item.get("name") if isinstance(item, dict) else item) for item in results]
+    checks: dict[str, bool] = {}
+
+    if "names" in expect:
+        checks["names"] = names == [norm(name) for name in expect["names"]]
+    if "names_include" in expect:
+        checks["names_include"] = all(norm(name) in names for name in expect["names_include"])
+    if "names_exclude" in expect:
+        checks["names_exclude"] = all(norm(name) not in names for name in expect["names_exclude"])
+    if "count" in expect:
+        checks["count"] = len(names) == int(expect["count"])
+    if "first" in expect:
+        checks["first"] = bool(names) and names[0] == norm(expect["first"])
+    return _result(checks, {"names": names})
 
 
 def score_recipe(expect: dict, actual: dict) -> dict:
@@ -232,6 +254,8 @@ def evaluate(case, actual: dict) -> dict:
         if "scale" in case.expect:
             return score_scale(case.expect["scale"], actual)
         return score_recipe(case.expect, actual)
+    if case.suite == "suggest":
+        return score_suggest(case.expect, actual)
     if case.suite == "cart":
         return score_cart(case.expect, actual)
     if case.suite == "flow":

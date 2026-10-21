@@ -4,17 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QuickChef — Cook it, we cart it</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <span class="logo">QC</span>
-      <div>
-        <h1>QuickChef</h1>
-        <p>Tell us the dish — we'll fill your basket</p>
-      </div>
-    </div>
+    <button class="brand" id="brand-home" type="button" aria-label="QuickChef home — start a new dish">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 44 44" role="presentation">
+          <path d="M13 19c-4.2 0-6.8 2.5-6.8 5.7 0 2.2 1.3 4 3.4 4.8L11 36h22l1.4-6.5c2.1-.8 3.4-2.6 3.4-4.8 0-3.2-2.6-5.7-6.8-5.7-1.4-3.8-4.5-6.2-8-6.2s-6.6 2.4-8 6.2Z" fill="#eaf7ee" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>
+          <path d="M12.5 29.5h19" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+          <path d="M22 22.5c-2.8 1.5-4 4.2-3.3 6.8M23 22.5c2.8 1.5 4 4.2 3.3 6.8" fill="none" stroke="#0c831f" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M22 15.8v-3.2" stroke="#0c831f" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M22 12.6c1.7-2.9 4.2-3.9 6.9-3.2-1.5 2.9-3.8 4-6.9 3.2Z" fill="#8fd19e" stroke="#0c831f" stroke-width="1.1" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="brand-copy">
+        <span class="wordmark" role="heading" aria-level="1">QuickChef</span>
+        <span class="tagline">Tell us the dish — we'll fill your basket</span>
+      </span>
+    </button>
     <span class="badge {{ 'ok' if llm_enabled else 'warn' }}">
       {{ 'LLM live' if llm_enabled else 'Offline recipe mode' }}
     </span>
@@ -37,19 +48,33 @@
         <span class="eyebrow">Step 1 of 4</span>
         <h2>What would you like to cook?</h2>
         <p class="muted">Type a dish name and we'll figure out the groceries.</p>
-        <form id="dish-form" class="input-row" autocomplete="off">
-          <input id="dish-input" type="text" placeholder="e.g. Dal Makhani, or Rajma without onion garlic" />
-          <button type="submit" class="primary" id="dish-btn">Continue</button>
-        </form>
-        <div id="dish-feedback" class="feedback"></div>
-        <div id="dish-confirm" class="dish-confirm hidden" aria-live="polite">
-          <div class="dc-media">
-            <div id="dc-skeleton" class="dc-skeleton"></div>
-            <img id="dc-img" class="hidden" alt="" />
-            <a id="dc-credit" class="dc-credit" target="_blank" rel="noopener noreferrer"></a>
+        <div class="dish-search">
+          <form id="dish-form" class="input-row" autocomplete="off" role="search">
+            <input
+              id="dish-input"
+              type="text"
+              placeholder="e.g. Dal Makhani, or Rajma without onion garlic"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="dish-suggestions"
+              aria-expanded="false"
+            />
+            <button type="submit" class="primary" id="dish-btn">Continue</button>
+          </form>
+          <div id="dish-suggestions" class="dish-suggestions hidden" role="listbox" aria-label="Dish suggestions"></div>
+        </div>
+        <div id="custom-dish-wrap" class="custom-dish-wrap hidden">
+          <label class="field-label" for="custom-dish-input">Add a different dish</label>
+          <div class="custom-dish-row">
+            <input id="custom-dish-input" type="text" placeholder="Type the dish you have in mind" autocomplete="off" />
+            <button type="button" class="primary" id="custom-dish-btn">Use this dish</button>
+            <button type="button" class="ghost" id="custom-dish-cancel">Back to list</button>
           </div>
+        </div>
+        <div id="dish-feedback" class="feedback" aria-live="polite"></div>
+        <div id="dish-confirm" class="dish-confirm hidden" aria-live="polite">
           <div class="dc-body">
-            <span class="eyebrow">Confirm your dish</span>
+            <span class="eyebrow" id="dc-eyebrow">Confirm your dish</span>
             <h3 id="dc-name">—</h3>
             <p id="dc-desc" class="muted">We'll build a basket for this dish.</p>
             <div id="dc-candidates" class="dc-candidates hidden">
@@ -57,8 +82,8 @@
               <div id="dc-candidate-list" class="dc-candidate-list"></div>
             </div>
             <div class="dc-actions">
-              <button type="button" class="primary" id="dc-yes">Yes, cook this</button>
-              <button type="button" class="ghost" id="dc-no">Not this dish</button>
+              <button type="button" class="primary" id="dc-yes">Continue</button>
+              <button type="button" class="ghost" id="dc-no">Change dish</button>
             </div>
           </div>
         </div>
@@ -66,8 +91,9 @@
           <span class="muted">Try:</span>
           <button class="chip-btn" data-dish="Dal Makhani">Dal Makhani</button>
           <button class="chip-btn" data-dish="Paneer Butter Masala">Paneer Butter Masala</button>
-          <button class="chip-btn" data-dish="Chole">Chole</button>
-          <button class="chip-btn" data-dish="Vegetable Biryani">Veg Biryani</button>
+          <button class="chip-btn" data-dish="Paneer Tikka">Paneer Tikka</button>
+          <button class="chip-btn" data-dish="Malai Soy Chaap">Malai Soy Chaap</button>
+          <button class="chip-btn" data-dish="Butter Chicken">Butter Chicken</button>
           <button class="chip-btn" data-dish="Rajma without onion garlic">Rajma (no onion/garlic)</button>
           <button class="chip-btn" data-dish="Mix veg with mushrooms">Mix Veg + Mushrooms</button>
         </div>
@@ -114,7 +140,6 @@
         <aside class="recipe-card">
           <div class="recipe-head">
             <div class="recipe-head-main">
-              <img id="recipe-photo" class="recipe-photo hidden" alt="" />
               <div>
                 <span class="eyebrow">Recipe</span>
                 <h2 id="recipe-dish">—</h2>
@@ -224,6 +249,8 @@
       </g>
     </svg>
   </div>
+
+  <div id="dish-toast" class="dish-toast hidden" role="alert" aria-live="assertive"></div>
 
   <script src="/static/script.js"></script>
 </body>
