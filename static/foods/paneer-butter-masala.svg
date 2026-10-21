@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Paneer butter masala">
+  <rect width="240" height="180" rx="20" fill="#fdf2e2"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M46 92h148c0 38-26 58-74 58S46 130 46 92Z" fill="#fff"/>
+    <ellipse cx="120" cy="92" rx="74" ry="14" fill="#fff"/>
+    <path d="M70 88c14-10 30-8 42 0s26 8 38-2"/>
+    <rect x="88" y="66" width="24" height="20" rx="4" fill="#fff"/>
+    <rect x="116" y="58" width="24" height="22" rx="4" fill="#fff"/>
+    <rect x="142" y="70" width="22" height="18" rx="4" fill="#fff"/>
+    <path d="M104 120c8 6 24 6 32 0"/>
+    <path d="M150 128c6-6 14-8 20-6"/>
+  </g>
+</svg>

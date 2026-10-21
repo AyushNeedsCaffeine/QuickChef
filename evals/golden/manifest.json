@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "name": "QuickChef golden dataset",
+  "description": "Curated dish resolution, recipe, cart, flow, photo and edge cases for QuickChef.",
+  "created": "2026-10-20",
+  "cases_file": "cases.jsonl",
+  "counts": {
+    "total": 68,
+    "by_mode": {
+      "offline": 35,
+      "live": 33
+    },
+    "by_suite": {
+      "dish": 22,
+      "recipe": 18,
+      "cart": 6,
+      "flow": 6,
+      "photo": 8,
+      "edge": 8
+    }
+  },
+  "modes": {
+    "offline": "Deterministic; LLM disabled, no network. Safe for CI.",
+    "live": "Needs GROQ_API_KEY for dish/recipe/flow cases and network access for photo cases."
+  },
+  "gates": {
+    "offline": "Every offline case must pass; mean score 1.0.",
+    "live": "Every live case must pass; run nightly or before a release."
+  },
+  "commands": {
+    "offline": "python -m evals.run_golden",
+    "offline_json": "python -m evals.run_golden --json-out /tmp/golden-offline.json",
+    "live": "python -m evals.run_golden --live",
+    "dish_live": "python -m evals.run_golden --live --suite dish",
+    "photos": "python -m evals.run_golden --live --suite photo",
+    "list": "python -m evals.run_golden --list"
+  },
+  "notes": [
+    "Matar Kulcha is the key colloquial case: the canonical dish stays Matar Kulcha and the card must offer Chole Kulche, rather than silently mapping.",
+    "Offline modifier flows document the known limitation: the fallback recipe cannot honour exclusions, so the API returns a notice.",
+    "Photo cases check metadata and cache behaviour, not visual identity. A wrong photo is still a manual-review risk.",
+    "Baselines live in evals/baselines and are written with --write-baseline."
+  ]
+}

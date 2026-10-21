@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QuickChef captured feedback event",
+  "type": "object",
+  "required": ["schema_version", "id", "kind", "captured_at", "status"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^fb_[a-f0-9]+$" },
+    "kind": {
+      "enum": ["dish_rejected", "dish_correction", "review_liked", "review_disliked"]
+    },
+    "captured_at": { "type": "string", "format": "date-time" },
+    "session_id": { "type": "string" },
+    "status": { "enum": ["recorded", "pending_review"] },
+    "needs_review": { "type": "boolean" },
+    "app": { "type": "object" },
+    "dish": { "type": "object" },
+    "correction": { "type": "object" },
+    "recipe": { "type": "object" },
+    "cart": { "type": "object" },
+    "truncated": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

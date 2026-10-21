@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuickChef — Cook it, we cart it</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">QC</span>
+      <div>
+        <h1>QuickChef</h1>
+        <p>Tell us the dish — we'll fill your basket</p>
+      </div>
+    </div>
+    <span class="badge {{ 'ok' if llm_enabled else 'warn' }}">
+      {{ 'LLM live' if llm_enabled else 'Offline recipe mode' }}
+    </span>
+  </header>
+
+  <nav class="stepper" id="stepper">
+    <button class="step" data-step="1"><span class="dot">1</span><span class="label">Dish</span></button>
+    <span class="connector"></span>
+    <button class="step" data-step="2"><span class="dot">2</span><span class="label">Servings</span></button>
+    <span class="connector"></span>
+    <button class="step" data-step="3"><span class="dot">3</span><span class="label">Review</span></button>
+    <span class="connector"></span>
+    <button class="step" data-step="4"><span class="dot">4</span><span class="label">Payment</span></button>
+  </nav>
+
+  <main class="wizard">
+    <!-- STEP 1: DISH -->
+    <section class="screen" id="screen-1">
+      <div class="panel center">
+        <span class="eyebrow">Step 1 of 4</span>
+        <h2>What would you like to cook?</h2>
+        <p class="muted">Type a dish name and we'll figure out the groceries.</p>
+        <form id="dish-form" class="input-row" autocomplete="off">
+          <input id="dish-input" type="text" placeholder="e.g. Dal Makhani, or Rajma without onion garlic" />
+          <button type="submit" class="primary" id="dish-btn">Continue</button>
+        </form>
+        <div id="dish-feedback" class="feedback"></div>
+        <div id="dish-confirm" class="dish-confirm hidden" aria-live="polite">
+          <div class="dc-media">
+            <div id="dc-skeleton" class="dc-skeleton"></div>
+            <img id="dc-img" class="hidden" alt="" />
+            <a id="dc-credit" class="dc-credit" target="_blank" rel="noopener noreferrer"></a>
+          </div>
+          <div class="dc-body">
+            <span class="eyebrow">Confirm your dish</span>
+            <h3 id="dc-name">—</h3>
+            <p id="dc-desc" class="muted">We'll build a basket for this dish.</p>
+            <div id="dc-candidates" class="dc-candidates hidden">
+              <span class="muted">Did you mean…</span>
+              <div id="dc-candidate-list" class="dc-candidate-list"></div>
+            </div>
+            <div class="dc-actions">
+              <button type="button" class="primary" id="dc-yes">Yes, cook this</button>
+              <button type="button" class="ghost" id="dc-no">Not this dish</button>
+            </div>
+          </div>
+        </div>
+        <div class="suggestions">
+          <span class="muted">Try:</span>
+          <button class="chip-btn" data-dish="Dal Makhani">Dal Makhani</button>
+          <button class="chip-btn" data-dish="Paneer Butter Masala">Paneer Butter Masala</button>
+          <button class="chip-btn" data-dish="Chole">Chole</button>
+          <button class="chip-btn" data-dish="Vegetable Biryani">Veg Biryani</button>
+          <button class="chip-btn" data-dish="Rajma without onion garlic">Rajma (no onion/garlic)</button>
+          <button class="chip-btn" data-dish="Mix veg with mushrooms">Mix Veg + Mushrooms</button>
+        </div>
+      </div>
+      <div class="food-strip" id="food-strip" aria-label="Popular dishes">
+        <div class="food-track" id="food-track"></div>
+      </div>
+    </section>
+
+    <!-- STEP 2: SERVINGS -->
+    <section class="screen" id="screen-2">
+      <div class="panel center">
+        <span class="eyebrow">Step 2 of 4</span>
+        <h2>How many people are you cooking for?</h2>
+        <p class="muted" id="servings-dish-label">Cooking <b>—</b></p>
+
+        <div class="servings-display">
+          <span id="servings-value">4</span>
+          <small>people</small>
+        </div>
+
+        <input type="range" id="servings-slider" min="1" max="20" value="4" step="1" aria-label="Number of servings" />
+        <div class="slider-scale"><span>1</span><span>10</span><span>20</span></div>
+
+        <label class="toggle-row">
+          <input type="checkbox" id="custom-toggle" />
+          <span>Large gathering? Enter an exact number</span>
+        </label>
+        <div id="custom-wrap" class="custom-wrap hidden">
+          <input type="number" id="servings-number" min="1" max="100" value="4" />
+        </div>
+
+        <div class="feedback" id="servings-feedback"></div>
+        <div class="row-actions">
+          <button class="ghost" id="servings-back">← Back</button>
+          <button class="primary" id="servings-confirm">Confirm &amp; build my basket</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: REVIEW -->
+    <section class="screen" id="screen-3">
+      <div class="review-layout">
+        <aside class="recipe-card">
+          <div class="recipe-head">
+            <div class="recipe-head-main">
+              <img id="recipe-photo" class="recipe-photo hidden" alt="" />
+              <div>
+                <span class="eyebrow">Recipe</span>
+                <h2 id="recipe-dish">—</h2>
+              </div>
+            </div>
+            <span class="chip" id="recipe-servings">—</span>
+          </div>
+          <p class="muted" id="recipe-source"></p>
+          <div id="modifier-note" class="notice hidden"></div>
+          <div id="unmatched-note" class="notice hidden"></div>
+          <details open>
+            <summary>Ingredients</summary>
+            <ul id="recipe-ingredients" class="recipe-list"></ul>
+          </details>
+          <details open>
+            <summary>Method</summary>
+            <ol id="recipe-steps" class="recipe-steps"></ol>
+          </details>
+        </aside>
+
+        <div class="cart-column">
+          <div class="cart-head">
+            <h2>Your basket</h2>
+            <span class="count" id="cart-count">0 items</span>
+          </div>
+
+          <div class="review-feedback" id="review-feedback">
+            <div class="rf-copy">
+              <b>How does this recipe + basket look?</b>
+              <span class="muted">Your feedback helps improve later evaluations.</span>
+            </div>
+            <div class="rf-actions">
+              <button type="button" class="rf-btn" id="review-like">Looks right</button>
+              <button type="button" class="rf-btn danger" id="review-dislike">Not right</button>
+            </div>
+            <p class="rf-status" id="review-feedback-status" aria-live="polite"></p>
+          </div>
+
+          <div class="cart-cards" id="cart-cards"></div>
+
+          <div class="add-item">
+            <label class="muted">Add something extra</label>
+            <input id="add-search" type="text" placeholder="Search e.g. milk, curd, bread" autocomplete="off" />
+            <ul id="add-results" class="add-results"></ul>
+          </div>
+
+          <div class="bill" id="bill">
+            <div><span>Item total</span><span id="b-subtotal">₹0</span></div>
+            <div><span>Delivery</span><span id="b-delivery">₹0</span></div>
+            <div><span>Handling</span><span id="b-handling">₹0</span></div>
+            <div class="grand"><span>To pay</span><span id="b-total">₹0</span></div>
+          </div>
+
+          <div class="row-actions">
+            <button class="ghost" id="review-back">← Back</button>
+            <button class="danger" id="cancel-order">Cancel order</button>
+            <button class="primary" id="to-payment">Proceed to Payment →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4: PAYMENT -->
+    <section class="screen" id="screen-4">
+      <div class="payment-layout">
+        <div class="panel">
+          <span class="eyebrow">Step 4 of 4</span>
+          <h2>Choose payment method</h2>
+          <div class="methods" id="methods">
+            <label class="method"><input type="radio" name="method" value="upi" checked /><span class="m-icon">₹</span><span><b>UPI</b><small>GPay / PhonePe / Paytm</small></span></label>
+            <label class="method"><input type="radio" name="method" value="card" /><span class="m-icon">💳</span><span><b>Credit / Debit Card</b><small>Visa, Mastercard, RuPay</small></span></label>
+            <label class="method"><input type="radio" name="method" value="cod" /><span class="m-icon">💵</span><span><b>Cash on Delivery</b><small>Pay when it arrives</small></span></label>
+          </div>
+          <label class="field-label" for="address-input">Delivery address</label>
+          <input id="address-input" class="address-input" type="text" value="Home" placeholder="e.g. Home, 12 MG Road" autocomplete="street-address" />
+          <button class="primary wide" id="pay-btn">Pay ₹0</button>
+          <button class="ghost wide" id="payment-back">← Back to basket</button>
+        </div>
+
+        <aside class="panel summary" id="pay-summary"></aside>
+      </div>
+    </section>
+
+    <!-- SUCCESS -->
+    <section class="screen" id="screen-done">
+      <div class="panel center success-panel">
+        <div class="big-tick">✓</div>
+        <h2>Order placed!</h2>
+        <p class="muted" id="done-sub">Your groceries are on the way.</p>
+        <div class="order-id" id="done-order-id">—</div>
+        <div class="summary" id="done-summary"></div>
+        <button class="primary" id="start-over">Start a new order</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="food-float" aria-hidden="true">
+    <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <path class="steam s1" d="M48 52c-6-7 6-11 0-19"/>
+        <path class="steam s2" d="M60 48c-6-7 6-11 0-19"/>
+        <path class="steam s3" d="M72 52c-6-7 6-11 0-19"/>
+        <path d="M20 68H100C100 96 82 110 60 110C38 110 20 96 20 68Z" fill="#e9f7ee"/>
+        <ellipse cx="60" cy="68" rx="40" ry="9" fill="#fff"/>
+        <path d="M44 66c5-5 11-5 16 0s11 5 16 0"/>
+        <path d="M46 108h28"/>
+      </g>
+    </svg>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

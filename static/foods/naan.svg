@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Garlic naan">
+  <rect width="240" height="180" rx="20" fill="#e9f7ee"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M58 104c-6-34 28-56 60-52 34 4 66 20 64 50-2 26-44 34-78 30-26-3-42-12-46-28Z" fill="#fff"/>
+    <path d="M78 86c10-10 26-12 40-8"/>
+    <path d="M86 104c12-8 30-8 44-2"/>
+    <path d="M120 62c2 8 2 16 0 24"/>
+    <circle cx="146" cy="92" r="2.2" fill="#0c831f"/>
+    <circle cx="102" cy="96" r="2.2" fill="#0c831f"/>
+    <circle cx="128" cy="110" r="2.2" fill="#0c831f"/>
+    <path d="M156 78c4 4 8 6 12 6"/>
+    <path d="M72 76c-3 3-4 7-4 11"/>
+  </g>
+</svg>

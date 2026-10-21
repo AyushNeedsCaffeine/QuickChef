@@ -1,0 +1,393 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-21T04:27:12.286926+00:00",
+  "mode": "live",
+  "summary": {
+    "total": 22,
+    "passed": 22,
+    "failed": 0,
+    "mean_score": 1.0,
+    "min_score": 1.0,
+    "seconds": 10.94,
+    "mode": "live"
+  },
+  "results": [
+    {
+      "id": "dish-exact-dal-makhani",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true,
+        "modifiers": true
+      },
+      "details": {
+        "display": "Dal Makhani",
+        "candidates": []
+      },
+      "seconds": 0.12
+    },
+    {
+      "id": "dish-typo-dal-makhni",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Dal Makhani",
+        "candidates": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "dish-exact-chole-kulche",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Chole Kulche",
+        "candidates": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "dish-translit-chole-kulcha",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Chole Kulche",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-veg-biryani",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Veg Biryani",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-rajma-generic",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Rajma Curry",
+        "candidates": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "dish-modifier-rajma",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true,
+        "modifiers": true
+      },
+      "details": {
+        "display": "Rajma Without Onion Garlic",
+        "candidates": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "dish-palak-paneer-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Palak Paneer",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-masala-dosa-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Masala Dosa",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-unknown-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Matar Kulcha",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-colloquial-matar-kulcha",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_any": true,
+        "needs_clarification": true,
+        "modifiers": true
+      },
+      "details": {
+        "display": "Matar Kulcha",
+        "candidates": [
+          "chole kulche"
+        ]
+      },
+      "seconds": 3.45
+    },
+    {
+      "id": "dish-colloquial-chole-kulcha",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Chole Kulche",
+        "candidates": []
+      },
+      "seconds": 0.71
+    },
+    {
+      "id": "dish-palak-paneer-live",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Palak Paneer",
+        "candidates": []
+      },
+      "seconds": 0.58
+    },
+    {
+      "id": "dish-veg-pulao-live",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Veg Pulao",
+        "candidates": []
+      },
+      "seconds": 0.53
+    },
+    {
+      "id": "dish-modifier-rajma-live",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true,
+        "modifiers": true
+      },
+      "details": {
+        "display": "Rajma Without Onion Garlic",
+        "candidates": []
+      },
+      "seconds": 0.71
+    },
+    {
+      "id": "dish-modifier-pav-bhaji-live",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true,
+        "modifiers": true
+      },
+      "details": {
+        "display": "Pav Bhaji Extra Butter",
+        "candidates": []
+      },
+      "seconds": 0.57
+    },
+    {
+      "id": "dish-unknown-sushi-live",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Sushi",
+        "candidates": []
+      },
+      "seconds": 1.07
+    },
+    {
+      "id": "dish-matar-paneer-no-candidate-live",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Matar Paneer",
+        "candidates": []
+      },
+      "seconds": 0.47
+    },
+    {
+      "id": "dish-live-kale-chane",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true
+      },
+      "details": {
+        "display": "Kala Chana",
+        "candidates": []
+      },
+      "seconds": 0.79
+    },
+    {
+      "id": "dish-live-masala-chane",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true
+      },
+      "details": {
+        "display": "Masala Chana",
+        "candidates": []
+      },
+      "seconds": 0.66
+    },
+    {
+      "id": "dish-live-maggi",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true
+      },
+      "details": {
+        "display": "Maggi Noodles",
+        "candidates": []
+      },
+      "seconds": 0.61
+    },
+    {
+      "id": "dish-live-pumpkin",
+      "suite": "dish",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true
+      },
+      "details": {
+        "display": "Pumpkin Sabzi",
+        "candidates": []
+      },
+      "seconds": 0.62
+    }
+  ]
+}

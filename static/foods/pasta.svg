@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Pasta">
+  <rect width="240" height="180" rx="20" fill="#fdf4e3"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M56 98h128c0 32-24 50-64 50s-64-18-64-50Z" fill="#fff"/>
+    <ellipse cx="120" cy="98" rx="64" ry="12" fill="#fff"/>
+    <rect x="86" y="78" width="30" height="12" rx="5" transform="rotate(-18 101 84)" fill="#fff"/>
+    <rect x="112" y="70" width="30" height="12" rx="5" transform="rotate(12 127 76)" fill="#fff"/>
+    <rect x="132" y="88" width="28" height="12" rx="5" transform="rotate(-8 146 94)" fill="#fff"/>
+    <circle cx="100" cy="104" r="7" fill="#fff"/>
+    <path d="M100 97v14M93 104h14"/>
+    <path d="M158 74c6-6 14-6 18 0-6 6-14 6-18 0Z" fill="#fff"/>
+  </g>
+</svg>

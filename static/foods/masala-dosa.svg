@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Masala dosa">
+  <rect width="240" height="180" rx="20" fill="#f7f1e6"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M52 132c10-40 34-64 66-72 5 22-2 46-22 62-14 12-30 16-44 10Z" fill="#fff"/>
+    <path d="M64 126c12-24 30-42 48-52"/>
+    <path d="M78 132c10-18 24-32 38-40"/>
+    <path d="M170 108h38c0 18-8 28-19 28s-19-10-19-28Z" fill="#fff"/>
+    <ellipse cx="189" cy="108" rx="19" ry="6" fill="#fff"/>
+    <path d="M180 108c5 2 11 2 16 0"/>
+  </g>
+</svg>

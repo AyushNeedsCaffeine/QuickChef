@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Dish photo placeholder">
+  <rect width="400" height="300" fill="#f6f1e7"/>
+  <circle cx="200" cy="145" r="82" fill="#fffdf8" stroke="#d8cdb8" stroke-width="5"/>
+  <circle cx="200" cy="145" r="56" fill="#eef5e6"/>
+  <path d="M200 112c26 0 45 18 45 40 0 18-15 32-33 36l-12 2-12-2c-18-4-33-18-33-36 0-22 19-40 45-40Z" fill="#9dbb7a"/>
+  <path d="M200 124c0 20-6 36-14 48" fill="none" stroke="#6f8f52" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="180" cy="140" r="7" fill="#f2d27c"/>
+  <circle cx="216" cy="150" r="6" fill="#e08a5b"/>
+  <text x="200" y="252" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" fill="#8a7f6c">Photo coming soon</text>
+</svg>

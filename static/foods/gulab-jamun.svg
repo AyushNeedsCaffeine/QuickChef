@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Gulab jamun">
+  <rect width="240" height="180" rx="20" fill="#f1ecfa"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M52 98h136c0 30-26 48-68 48s-68-18-68-48Z" fill="#fff"/>
+    <ellipse cx="120" cy="98" rx="68" ry="12" fill="#fff"/>
+    <circle cx="96" cy="92" r="16" fill="#fff"/>
+    <circle cx="132" cy="88" r="16" fill="#fff"/>
+    <circle cx="148" cy="100" r="13" fill="#fff"/>
+    <path d="M112 86c12 6 24 6 32 0"/>
+    <path d="M84 110c10 8 26 12 40 12"/>
+    <path d="M150 110c6 6 12 8 18 8"/>
+  </g>
+</svg>

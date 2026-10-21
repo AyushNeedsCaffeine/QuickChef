@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Veg hakka noodles">
+  <rect width="240" height="180" rx="20" fill="#fdece4"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M52 100h136c0 28-26 44-68 44s-68-16-68-44Z" fill="#fff"/>
+    <ellipse cx="120" cy="100" rx="68" ry="12" fill="#fff"/>
+    <path d="M74 96c8 8 16 8 24 0s16-8 24 0 16 8 24 0 16-8 20 0"/>
+    <path d="M84 108c8 6 16 6 24 0s16-6 24 0 16 6 24 0"/>
+    <path d="M150 52l-24 44"/>
+    <path d="M166 56l-26 42"/>
+    <circle cx="96" cy="88" r="2.2" fill="#0c831f"/>
+    <circle cx="128" cy="88" r="2.2" fill="#0c831f"/>
+  </g>
+</svg>

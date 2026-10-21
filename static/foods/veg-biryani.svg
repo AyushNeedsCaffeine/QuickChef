@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Vegetable biryani">
+  <rect width="240" height="180" rx="20" fill="#fbf7df"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M56 100h128c0 26-26 44-64 44s-64-18-64-44Z" fill="#fff"/>
+    <path d="M64 100c6-30 28-46 56-46s50 16 56 46" fill="#fff"/>
+    <path d="M92 92c8-10 20-16 28-16"/>
+    <path d="M64 96c10-14 26-24 40-26" stroke-dasharray="5 10"/>
+    <circle cx="96" cy="82" r="2.4" fill="#0c831f"/>
+    <circle cx="128" cy="78" r="2.4" fill="#0c831f"/>
+    <circle cx="146" cy="90" r="2.4" fill="#0c831f"/>
+    <path d="M92 54c-4-6 4-10 0-16"/>
+    <path d="M120 48c-4-6 4-10 0-16"/>
+    <path d="M148 54c-4-6 4-10 0-16"/>
+  </g>
+</svg>

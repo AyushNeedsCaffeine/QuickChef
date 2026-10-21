@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-21T04:23:52.282948+00:00",
+  "mode": "live",
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "mean_score": 1.0,
+    "min_score": 1.0,
+    "seconds": 11.81,
+    "mode": "live"
+  },
+  "results": [
+    {
+      "id": "photo-chole-kulche",
+      "suite": "photo",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "kind": true,
+        "license_present": true,
+        "source_contains": true,
+        "url_prefix": true
+      },
+      "details": {
+        "kind": "photo",
+        "url": "/static/dish_photos/chole-kulche.jpg",
+        "reason": null
+      },
+      "seconds": 3.43
+    },
+    {
+      "id": "photo-matar-kulcha",
+      "suite": "photo",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "kind": true,
+        "license_present": true,
+        "source_contains": true,
+        "url_prefix": true
+      },
+      "details": {
+        "kind": "photo",
+        "url": "/static/dish_photos/matar-kulcha.jpg",
+        "reason": null
+      },
+      "seconds": 0.95
+    },
+    {
+      "id": "photo-dal-makhani",
+      "suite": "photo",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "kind": true,
+        "license_present": true,
+        "source_contains": true,
+        "url_prefix": true
+      },
+      "details": {
+        "kind": "photo",
+        "url": "/static/dish_photos/dal-makhani.jpg",
+        "reason": null
+      },
+      "seconds": 1.1
+    },
+    {
+      "id": "photo-paneer-butter-masala",
+      "suite": "photo",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "kind": true,
+        "license_present": true,
+        "source_contains": true,
+        "url_prefix": true
+      },
+      "details": {
+        "kind": "photo",
+        "url": "/static/dish_photos/paneer-butter-masala.jpg",
+        "reason": null
+      },
+      "seconds": 1.1
+    },
+    {
+      "id": "photo-unknown",
+      "suite": "photo",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "kind": true
+      },
+      "details": {
+        "kind": "none",
+        "url": null,
+        "reason": "no confident photo"
+      },
+      "seconds": 0.94
+    },
+    {
+      "id": "photo-live-maggi",
+      "suite": "photo",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "kind": true,
+        "license_present": true,
+        "source_contains": true,
+        "url_prefix": true
+      },
+      "details": {
+        "kind": "photo",
+        "url": "/static/dish_photos/maggi-noodles.jpg",
+        "reason": null
+      },
+      "seconds": 1.65
+    },
+    {
+      "id": "photo-live-pumpkin",
+      "suite": "photo",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "kind": true,
+        "license_present": true,
+        "source_contains": true,
+        "url_prefix": true
+      },
+      "details": {
+        "kind": "photo",
+        "url": "/static/dish_photos/pumpkin-sabzi.jpg",
+        "reason": null
+      },
+      "seconds": 1.03
+    },
+    {
+      "id": "photo-live-kala-chana",
+      "suite": "photo",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "kind": true,
+        "license_present": true,
+        "source_contains": true,
+        "url_prefix": true
+      },
+      "details": {
+        "kind": "photo",
+        "url": "/static/dish_photos/kala-chana.jpg",
+        "reason": null
+      },
+      "seconds": 1.6
+    }
+  ]
+}

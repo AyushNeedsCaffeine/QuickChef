@@ -1,0 +1,698 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-21T04:21:51.871832+00:00",
+  "mode": "offline",
+  "summary": {
+    "total": 35,
+    "passed": 35,
+    "failed": 0,
+    "mean_score": 1.0,
+    "min_score": 1.0,
+    "seconds": 0.81,
+    "mode": "offline"
+  },
+  "results": [
+    {
+      "id": "dish-exact-dal-makhani",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true,
+        "modifiers": true
+      },
+      "details": {
+        "display": "Dal Makhani",
+        "candidates": []
+      },
+      "seconds": 0.1
+    },
+    {
+      "id": "dish-typo-dal-makhni",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Dal Makhani",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-exact-chole-kulche",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Chole Kulche",
+        "candidates": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "dish-translit-chole-kulcha",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Chole Kulche",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-veg-biryani",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Veg Biryani",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-rajma-generic",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Rajma Curry",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-modifier-rajma",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true,
+        "modifiers": true
+      },
+      "details": {
+        "display": "Rajma Without Onion Garlic",
+        "candidates": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "dish-palak-paneer-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Palak Paneer",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-masala-dosa-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Masala Dosa",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "dish-unknown-offline",
+      "suite": "dish",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "display": true,
+        "candidates_none": true,
+        "needs_clarification": true
+      },
+      "details": {
+        "display": "Matar Kulcha",
+        "candidates": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "recipe-dal-makhani-offline",
+      "suite": "recipe",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "must_include": true,
+        "min_ingredients": true,
+        "min_steps": true,
+        "source": true,
+        "all_quantities_positive": true,
+        "min_cart_items": true
+      },
+      "details": {
+        "ingredients": 18,
+        "steps": 6,
+        "source": "offline"
+      },
+      "seconds": 0.12
+    },
+    {
+      "id": "recipe-chole-offline",
+      "suite": "recipe",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "must_include": true,
+        "min_ingredients": true,
+        "min_steps": true,
+        "source": true,
+        "all_quantities_positive": true,
+        "min_cart_items": true
+      },
+      "details": {
+        "ingredients": 13,
+        "steps": 6,
+        "source": "offline"
+      },
+      "seconds": 0.04
+    },
+    {
+      "id": "recipe-paneer-butter-masala-offline",
+      "suite": "recipe",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "must_include": true,
+        "min_ingredients": true,
+        "min_steps": true,
+        "source": true,
+        "all_quantities_positive": true,
+        "min_cart_items": true
+      },
+      "details": {
+        "ingredients": 14,
+        "steps": 6,
+        "source": "offline"
+      },
+      "seconds": 0.03
+    },
+    {
+      "id": "recipe-rajma-curry-offline",
+      "suite": "recipe",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "must_include": true,
+        "min_ingredients": true,
+        "min_steps": true,
+        "source": true,
+        "all_quantities_positive": true,
+        "min_cart_items": true
+      },
+      "details": {
+        "ingredients": 14,
+        "steps": 6,
+        "source": "offline"
+      },
+      "seconds": 0.02
+    },
+    {
+      "id": "recipe-aloo-gobi-offline",
+      "suite": "recipe",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "must_include": true,
+        "min_ingredients": true,
+        "min_steps": true,
+        "source": true,
+        "all_quantities_positive": true,
+        "min_cart_items": true
+      },
+      "details": {
+        "ingredients": 14,
+        "steps": 6,
+        "source": "offline"
+      },
+      "seconds": 0.04
+    },
+    {
+      "id": "recipe-vegetable-biryani-offline",
+      "suite": "recipe",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "must_include": true,
+        "min_ingredients": true,
+        "min_steps": true,
+        "source": true,
+        "all_quantities_positive": true,
+        "min_cart_items": true
+      },
+      "details": {
+        "ingredients": 15,
+        "steps": 6,
+        "source": "offline"
+      },
+      "seconds": 0.04
+    },
+    {
+      "id": "recipe-dal-makhani-scale",
+      "suite": "recipe",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "common_ingredients": true,
+        "linear_scale": true
+      },
+      "details": {
+        "mismatches": [],
+        "checked": 18
+      },
+      "seconds": 0.07
+    },
+    {
+      "id": "cart-staples",
+      "suite": "cart",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "matched_min": true,
+        "unmatched_max": true,
+        "matched_any": true
+      },
+      "details": {
+        "matched": [
+          "onion 500g",
+          "tomato 500g",
+          "urad dal whole 500g",
+          "desi ghee 200ml",
+          "basmati rice 1000g",
+          "kidney beans 500g",
+          "white chickpeas 500g",
+          "paneer 200g",
+          "fresh cream 200ml",
+          "butter 100g",
+          "full cream milk 500ml",
+          "sugar 1000g"
+        ],
+        "unmatched": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "cart-aliases",
+      "suite": "cart",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "matched_min": true,
+        "unmatched_max": true,
+        "matched_any": true
+      },
+      "details": {
+        "matched": [
+          "curd 400g",
+          "coriander leaves 100g",
+          "green chilli 100g",
+          "ginger 200g",
+          "garlic 200g",
+          "curd 400g"
+        ],
+        "unmatched": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "cart-dairy",
+      "suite": "cart",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "matched_min": true,
+        "unmatched_max": true,
+        "matched_any": true
+      },
+      "details": {
+        "matched": [
+          "paneer 200g",
+          "fresh cream 200ml",
+          "butter 100g",
+          "full cream milk 500ml",
+          "desi ghee 200ml"
+        ],
+        "unmatched": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "cart-pulses-grains",
+      "suite": "cart",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "matched_min": true,
+        "unmatched_max": true,
+        "matched_any": true
+      },
+      "details": {
+        "matched": [
+          "urad dal whole 500g",
+          "kidney beans 500g",
+          "white chickpeas 500g",
+          "basmati rice 1000g",
+          "poha 500g"
+        ],
+        "unmatched": []
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "cart-unknown",
+      "suite": "cart",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "matched_min": true,
+        "unmatched_max": true,
+        "unmatched_any": true
+      },
+      "details": {
+        "matched": [],
+        "unmatched": [
+          "unicorn tears"
+        ]
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "flow-dal-makhani-checkout",
+      "suite": "flow",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true,
+        "order_paid": true,
+        "payment_method": true,
+        "address": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 0.05
+    },
+    {
+      "id": "flow-chole-two",
+      "suite": "flow",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 0.03
+    },
+    {
+      "id": "flow-paneer-six",
+      "suite": "flow",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 0.03
+    },
+    {
+      "id": "flow-rajma-modifier-offline",
+      "suite": "flow",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true,
+        "notice_contains": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 0.04
+    },
+    {
+      "id": "edge-empty-dish",
+      "suite": "edge",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "understood": true
+      },
+      "details": {
+        "status": 422,
+        "error": {
+          "understood": false,
+          "message": "Please enter a dish name."
+        }
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "edge-empty-servings-dish",
+      "suite": "edge",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true
+      },
+      "details": {
+        "status": 422,
+        "error": {
+          "message": "Please choose a dish first."
+        }
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "edge-servings-one",
+      "suite": "edge",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "stage": true
+      },
+      "details": {
+        "status": 200,
+        "error": null
+      },
+      "seconds": 0.04
+    },
+    {
+      "id": "edge-servings-hundred",
+      "suite": "edge",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "stage": true
+      },
+      "details": {
+        "status": 200,
+        "error": null
+      },
+      "seconds": 0.04
+    },
+    {
+      "id": "edge-weird-characters",
+      "suite": "edge",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "understood": true
+      },
+      "details": {
+        "status": 200,
+        "error": null
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "edge-long-input",
+      "suite": "edge",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "understood": true,
+        "no_server_error": true
+      },
+      "details": {
+        "status": 200,
+        "error": null
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "edge-unknown-offline",
+      "suite": "edge",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "stage": true
+      },
+      "details": {
+        "status": 422,
+        "error": {
+          "message": "No recipe found for 'unicorn stew'.",
+          "stage": "await_dish"
+        }
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "edge-zero-servings",
+      "suite": "edge",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "status": true,
+        "no_server_error": true
+      },
+      "details": {
+        "status": 422,
+        "error": {
+          "detail": [
+            {
+              "type": "greater_than_equal",
+              "loc": [
+                "body",
+                "servings"
+              ],
+              "msg": "Input should be greater than or equal to 1",
+              "input": 0,
+              "ctx": {
+                "ge": 1
+              }
+            }
+          ]
+        }
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "cart-kala-chana-ingredients",
+      "suite": "cart",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "matched_min": true,
+        "unmatched_max": true,
+        "matched_any": true,
+        "matched_not": true
+      },
+      "details": {
+        "matched": [
+          "kala chana 500g",
+          "kale 250g",
+          "white chickpeas 500g"
+        ],
+        "unmatched": []
+      },
+      "seconds": 0.0
+    }
+  ]
+}

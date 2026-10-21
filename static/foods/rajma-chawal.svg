@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Rajma chawal">
+  <rect width="240" height="180" rx="20" fill="#fdf4e3"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 96c8-26 32-40 56-40s48 14 56 40" fill="#fff"/>
+    <path d="M84 92c10-12 26-18 36-18"/>
+    <path d="M96 84c8-8 18-12 24-12" stroke-dasharray="4 10"/>
+    <path d="M60 104h120c0 26-24 42-60 42s-60-16-60-42Z" fill="#fff"/>
+    <ellipse cx="120" cy="104" rx="60" ry="10" fill="#fff"/>
+    <path d="M92 112c-4 6-2 12 4 14"/>
+    <path d="M116 110c-4 6-2 12 4 14"/>
+    <path d="M140 112c-4 6-2 12 4 14"/>
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Aloo gobi">
+  <rect width="240" height="180" rx="20" fill="#e9f7ee"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="88" cy="112" rx="34" ry="24" fill="#fff"/>
+    <path d="M66 106c6-4 12-4 18 0"/>
+    <circle cx="156" cy="92" r="12" fill="#fff"/>
+    <circle cx="178" cy="102" r="12" fill="#fff"/>
+    <circle cx="140" cy="108" r="12" fill="#fff"/>
+    <circle cx="160" cy="120" r="12" fill="#fff"/>
+    <path d="M156 92h0M178 102h0M140 108h0M160 120h0"/>
+    <path d="M188 128c8-4 14-2 18 4"/>
+    <path d="M60 132c-10-2-16 6-14 14 8 2 16-2 18-10Z" fill="#fff"/>
+  </g>
+</svg>

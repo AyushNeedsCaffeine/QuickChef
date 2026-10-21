@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Idli sambar">
+  <rect width="240" height="180" rx="20" fill="#e9f2fb"/>
+  <g fill="none" stroke="#0c831f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="108" cy="122" rx="66" ry="18" fill="#fff"/>
+    <ellipse cx="88" cy="112" rx="24" ry="14" fill="#fff"/>
+    <ellipse cx="132" cy="112" rx="24" ry="14" fill="#fff"/>
+    <path d="M78 110c4-4 10-4 14 0"/>
+    <path d="M122 110c4-4 10-4 14 0"/>
+    <path d="M176 96h34c0 16-8 24-17 24s-17-8-17-24Z" fill="#fff"/>
+    <ellipse cx="193" cy="96" rx="17" ry="5" fill="#fff"/>
+    <path d="M184 96c4 2 8 2 12 0"/>
+  </g>
+</svg>

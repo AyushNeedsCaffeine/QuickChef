@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quickchef.local/evals/golden/schema.json",
+  "title": "QuickChef golden case",
+  "type": "object",
+  "required": ["id", "suite", "mode", "input", "expect"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]+$",
+      "description": "Stable, unique case id."
+    },
+    "suite": {
+      "type": "string",
+      "enum": ["dish", "recipe", "cart", "flow", "photo", "edge"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["offline", "live"],
+      "description": "offline = LLM disabled, no network; live = real LLM/photo services."
+    },
+    "input": {
+      "type": "object",
+      "description": "Suite-specific input: {dish}, {dish, servings}, {ingredients}, {dish, servings, pay}, {endpoint, ...}."
+    },
+    "expect": {
+      "type": "object",
+      "description": "Suite-specific assertions consumed by evals.evaluators."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

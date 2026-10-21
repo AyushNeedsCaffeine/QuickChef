@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-21T04:23:28.758042+00:00",
+  "mode": "live",
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "mean_score": 1.0,
+    "min_score": 1.0,
+    "seconds": 8.48,
+    "mode": "live"
+  },
+  "results": [
+    {
+      "id": "flow-dal-makhani-checkout",
+      "suite": "flow",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true,
+        "order_paid": true,
+        "payment_method": true,
+        "address": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 0.2
+    },
+    {
+      "id": "flow-chole-two",
+      "suite": "flow",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 0.02
+    },
+    {
+      "id": "flow-paneer-six",
+      "suite": "flow",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 0.02
+    },
+    {
+      "id": "flow-rajma-modifier-offline",
+      "suite": "flow",
+      "mode": "offline",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true,
+        "notice_contains": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 0.02
+    },
+    {
+      "id": "flow-chole-kulche-live",
+      "suite": "flow",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 5.87
+    },
+    {
+      "id": "flow-palak-paneer-live",
+      "suite": "flow",
+      "mode": "live",
+      "score": 1.0,
+      "passed": true,
+      "checks": {
+        "stage": true,
+        "recipe_source": true,
+        "min_cart_items": true,
+        "total_positive": true
+      },
+      "details": {
+        "stage": "cart_review",
+        "error": null
+      },
+      "seconds": 2.35
+    }
+  ]
+}
