@@ -1,7 +1,7 @@
 # High-Level Design (HLD)
 
 **Project:** QuickChef — Recipe-to-Cart Shopping Agent
-**Version:** 2.1
+**Version:** 2.3
 **Companion documents:** [SRS](./SRS.md), [LLD](./LLD.md)
 
 ---
@@ -18,10 +18,13 @@ The agent performs recipe research (ingredients + cooking steps) and cart buildi
 **human-in-the-loop (HITL)** checkpoint implemented with LangGraph's `interrupt()`.
 Before any recipe work, the UI offers live catalogue typeahead. Known suggestions, quick-pick
 chips, and exact catalogue names advance immediately; ambiguous names show catalogue candidates and
-advance on selection. Only an explicit custom dish shows a confirmation preview (with an optional
-gated photo). Regular uncatalogued dishes are rejected, while a custom dish may reach recipe
-generation through the LLM. Confirmed corrections are learned in a local synonym store. The user
-edits the cart over REST, then selects a mock payment method to resume the graph and place the order.
+advance on selection. A visible **Add your custom dish** action on Step 1 opens an AI-backed custom
+path with a confirmation preview (and an optional gated photo). Regular uncatalogued dishes are
+rejected; custom dishes and modifications always require the LLM. Confirmed corrections are learned
+in a local synonym store. The user edits the cart over REST, then selects a mock payment method to
+resume the graph and place the order. A deployment-wide daily budget bounds logical LLM calls;
+plain catalogue and cached paths remain available when the budget is exhausted, while custom and
+modified requests return a clear quota error instead of an unmodified fallback.
 
 ---
 
@@ -33,6 +36,7 @@ flowchart LR
     UI -->|REST / JSON| API[FastAPI Service]
     API --> Agent[LangGraph Agent]
     Agent -->|structured parse + recipe| LLM[(Groq LLM\noptional)]
+    Agent -->|check/consume| Quota[(LLM quota\ndata/llm_quota.json)]
     Agent --> Services[Domain Services]
     Services --> Catalog[(Mock Catalog\ncatalog.json)]
     Services --> Cart[(In-memory\nCart / Orders)]
@@ -70,12 +74,14 @@ flowchart TB
         CART[cart.py]
         SYN[synonyms.py]
         PHOTO[photos.py]
+        QUOTA[llm_quota.py]
     end
 
     subgraph Data
         JSON[(data/catalog.json)]
         SYNJSON[(data/synonyms.json)]
         PHOTOC[(photo cache)]
+        QUOTAJ[(data/llm_quota.json)]
     end
 
     HTML --> ROUTES
@@ -89,9 +95,12 @@ flowchart TB
     ROUTES --> CAT
     ROUTES --> SYN
     ROUTES --> PHOTO
+    GRAPH --> QUOTA
+    ROUTES --> QUOTA
     CAT --> JSON
     SYN --> SYNJSON
     PHOTO --> PHOTOC
+    QUOTA --> QUOTAJ
 ```
 
 **Layer responsibilities**
@@ -110,6 +119,7 @@ flowchart TB
 | Service | `app/services/synonyms.py` | Learned dish-name corrections, atomic JSON store |
 | Service | `app/services/photos.py` | Optional Wikimedia photo search for custom confirmation, relevance/quality gating, local cache + attribution |
 | Service | `app/services/feedback.py` | Best-effort, append-only JSONL capture of dish and review feedback for golden-dataset review |
+| Service | `app/services/llm_quota.py` | Global daily logical-LLM budget, timezone reset, atomic file-backed counter |
 | Data | `app/models.py` | Pydantic domain models |
 | Config | `app/config.py` | Env-driven settings |
 
@@ -118,13 +128,19 @@ flowchart TB
   typeahead (AND semantics; no photos). `POST /api/dish/{id}` checks learned synonyms first (no
   LLM), resolves known catalogue dishes, and may return candidates for a specific correction. Known
   picks advance directly; candidates advance when chosen. Only custom dishes show a preview (and may
-  request one gated photo). Regular uncatalogued dishes are rejected with HTTP 422. A custom dish
-  may use the LLM to create a genuinely new dish; without a key, unsupported custom dishes are
-  rejected. **Change dish** appends a `dish_rejected` event; the next accepted candidate/dish
-  appends a linked `dish_correction` event.
+  request one gated photo). Regular uncatalogued dishes are rejected with HTTP 422. Step 1 also shows
+  an **Add your custom dish** card, and the custom input supports Enter/Escape. Custom dishes and
+  modifications are AI-only: without a key they return HTTP 422, and when the quota is exhausted
+  without a cached LLM recipe they return HTTP 429. **Change dish** appends a `dish_rejected` event;
+  the next accepted candidate/dish appends a linked `dish_correction` event.
 - **Step 2 (Servings):** `POST /api/servings/{id}` resets any paused HITL state (`_reset_if_paused`) and invokes the graph once with a synthetic message `"I want to cook {dish} for {n} people"`, forwarding `custom` so the extract node knows whether catalogue validation applies.
 - **Step 3 (Review):** cart is mutated through the cart endpoints; the recipe (including the `unmatched` list) is read from graph state and rendered beside the cart. The feedback bar captures an overall recipe + basket like/dislike (dislikes are queued for review).
-- **Step 4 (Payment):** `POST /api/order/{id}/pay` resumes the graph with the chosen method and delivery address and places the order.
+- **Step 4 (Payment):** `POST /api/order/{id}/pay` resumes the graph with the chosen method and delivery address and places the order. The UI resets the payment button after success and when starting a new order.
+- **AI budget:** every logical structured LLM call checks the deployment-wide daily counter first.
+  Catalogue picks, learned synonyms, and cached LLM recipes do not consume it. Plain offline
+  fallbacks are quota-free but are not cached when the quota caused the AI call to be skipped.
+  Custom dishes and modifications return HTTP 429 with `quota_exhausted:true` once the budget is
+  spent and no cached LLM recipe exists. Cached offline recipes are ignored for these requests.
 - **Cancel:** `POST /api/cart/{id}/cancel` resumes the paused graph with `cancel`, discarding the review without creating an order.
 
 ---
@@ -278,9 +294,11 @@ flowchart LR
             CT[Cart/Order stores]
         end
         FB[(evals/golden/feedback.jsonl)]
+        Q[(data/llm_quota.json)]
         UV --- GR
         UV --- CT
         UV --- FB
+        UV --- Q
     end
     Browser -->|HTTP| UV
     UV -.HTTPS.-> Groq[(Groq API)]
@@ -294,19 +312,27 @@ flowchart LR
   `static/dish_photos/`; regular catalogue dishes never call this path.
 - No database required for the demo; learned synonyms persist in `data/synonyms.json`.
   Reviewed feedback appends to `evals/golden/feedback.jsonl` (gitignored; promoted manually).
+  The daily LLM counter persists in `data/llm_quota.json` (gitignored). It is single-process-safe;
+  multi-worker deployment would need a shared store.
 
 ---
 
 ## 9. Cross-Cutting Concerns
 
 - **Configuration:** all tunables (fees, model, key) via environment variables (`app/config.py`).
-- **Error handling:** an uncatalogued regular dish → `POST /api/dish` or `/api/servings` returns HTTP 422 before any recipe generation and the wizard stays on Step 1. A custom dish without an LLM key is rejected the same way; with a key it may proceed. Empty-cart payment → HTTP 400; unmatched ingredients → surfaced, non-fatal; pantry items (`Water`, `Ice`) are reported separately and never carted.
+- **Error handling:** an uncatalogued regular dish → `POST /api/dish` or `/api/servings` returns HTTP 422 before any recipe generation and the wizard stays on Step 1. A custom dish without an LLM key is rejected with HTTP 422; with a key it may proceed, subject to the daily quota. When the quota is exhausted, custom/modified requests return HTTP 429 rather than an unmodified offline recipe. Empty-cart payment → HTTP 400; unmatched ingredients → surfaced, non-fatal; pantry items (`Water`, `Ice`) are reported separately and never carted.
 - **Wizard state safety:** `_reset_if_paused` cancels a pending HITL review before rebuilding, so going back to change servings never leaves a stale paused graph.
 - **Extensibility:** catalog is data-driven and the typeahead/dishes list live in `recipes.py`.
   Regular recipes require a catalogue entry plus an LLM/fallback path; the custom path can create a
   new recipe through the LLM. Offline mode only works for `recipes.py` fallbacks.
-- **Modifications:** free-text dish qualifiers (`without onion garlic`, `with mushrooms`) are preserved end-to-end and honoured by the LLM; offline mode builds the closest base recipe and surfaces a notice.
+- **Custom dishes and modifications:** free-text qualifiers (`without onion garlic`, `with mushrooms`) are submitted through the **Add your custom dish** flow and preserved end-to-end. They are honoured by the LLM and never silently replaced by an offline base recipe. The quick-pick menu intentionally has no modifier presets.
 - **Observability & regression:** LangSmith tracing is env-driven (`LANGSMITH_TRACING` + `LANGSMITH_API_KEY`); graph runs carry `run_name`, tags and per-session metadata. `evals/run_evals.py` scores the resolver against a LangSmith dataset. The curated 77-case golden dataset (`evals/run_golden.py`) adds a deterministic offline gate plus opt-in live LLM/photo suites. User feedback is queued separately (`evals/golden_feedback.py`) and promoted only after review (`evals/promote_feedback.py`); `evals/run_feedback.py` replays captured dish rejections against the current resolver.
+- **LLM budget:** a file-backed counter caps logical `_structured()` calls per deployment per day
+  (default 6, `Asia/Kolkata` reset, `LLM_DAILY_LIMIT=0` disables). `_structured()` refuses new calls
+  when exhausted; `/api/dish` and `/api/servings` pre-check the budget where an AI call is required
+  and return HTTP 429 with the quota message. Catalogue picks and cached LLM recipes are exempt;
+  plain offline fallbacks remain usable. Quota-blocked fallbacks are not cached, and modified or
+  custom requests never receive an offline fallback.
 - **Rate limits / external failures:** Groq 429s are retried once then degrade to heuristics/offline; optional custom-photo failures are cached briefly and never block the wizard. Feedback writes are best-effort and return `stored:false` on failure.
 - **Dish confirmation:** deterministic typeahead plus catalogue validation prevents silent mis-resolution for regular dishes; ambiguous names produce candidates instead of a hard-coded alias mapping, and specific user choices are learned. Only custom dishes pause for preview, and their photo is gated on relevance and resolution so the common path stays fast.
 - **Upgrade path:** replace in-memory cart/checkpoints with Redis/Postgres; replace mock catalog with a real commerce adapter implementing the same service interface; replace mock payment with a real gateway behind the same endpoint.

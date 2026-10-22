@@ -1,10 +1,10 @@
 # Software Requirements Specification (SRS)
 
 **Project:** QuickChef — Recipe-to-Cart Shopping Agent
-**Version:** 2.1
+**Version:** 2.3
 **Status:** Approved for implementation
 **Standard:** IEEE 830-style
-**Date:** 2026-10-21
+**Date:** 2026-10-22
 
 ---
 
@@ -21,10 +21,10 @@ or remove items, and places the order.
 ### 1.2 Scope
 QuickChef is a demonstration-grade system consisting of:
 - A **4-step wizard UI**: (1) Dish → (2) Servings → (3) Review (recipe + cart + bill) → (4) Payment.
-- A **live dish typeahead** over a curated catalogue, a custom-dish escape hatch, and a confirmation
-  preview only for custom dishes.
+- A **live dish typeahead** over a curated catalogue, a prominent page-1 custom-dish action, and a
+  confirmation preview only for custom dishes.
 - **Catalogue-first recipe generation** with explicit rejection of uncatalogued regular input; the
-  custom path may use the LLM to create a genuinely new dish.
+  custom path is AI-backed and may create a genuinely new dish or apply a modification.
 - **Ambiguity handling** via catalogue candidates and a local learned-synonym store.
 - A wizard-driven agent backend that collects the **dish** and **servings**.
 - A recipe resolver that converts a dish + servings into a structured ingredient list, quantities, and **cooking steps**.
@@ -32,8 +32,10 @@ QuickChef is a demonstration-grade system consisting of:
 - A cart service supporting add / update / remove / totals.
 - A human-in-the-loop review step followed by **mock payment** and order placement.
 - A web interface and a REST API.
+- A deployment-wide daily budget for LLM-backed work, with graceful degradation to catalogue
+  and offline paths.
 
-**In scope:** recipe resolution via LLM, in-memory mock catalog, cart management, HITL review, mock payment (UPI/Card/COD), order placement, session management, multi-step wizard UI.
+**In scope:** recipe resolution via LLM, in-memory mock catalog, cart management, HITL review, mock payment (UPI/Card/COD), order placement, session management, multi-step wizard UI, global LLM quota.
 
 **Out of scope:** real payment gateways, real Blinkit/Zepto API integration, authentication/authorization, persistent order storage, delivery logistics, mobile apps.
 
@@ -83,6 +85,8 @@ and the catalog is a bundled mock dataset.
 6. Populate the cart and display the recipe alongside editable ingredient cards.
 7. Present the cart for human review (add / remove / change quantity) with a live bill.
 8. Accept a mock payment method and place the order with a bill summary.
+9. Enforce a deployment-wide daily LLM budget (default 6 logical calls) and explain exhaustion
+   without blocking catalogue or offline flows.
 
 ### 2.3 User Characteristics
 - **End user (primary):** A home cook who knows what they want to cook but not what groceries to buy. Expects a fast, guided wizard (dish → servings → review → payment). No technical knowledge required.
@@ -128,7 +132,8 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 | FR-2.9 | The system SHALL NOT call the LLM when a learned correction already exists for the exact dish term. | S |
 | FR-2.10 | The system SHALL show at most one attributed Wikimedia photo on the custom confirmation preview, and only when relevance, resolution, and aspect-ratio gates pass; regular catalogue dishes SHALL NOT request a photo. | S |
 | FR-2.11 | The system SHALL provide live dish suggestions from the curated catalogue as the user types, using AND semantics for multiple words. | M |
-| FR-2.12 | The system SHALL allow a custom-dish path; with the LLM enabled it MAY generate a genuinely new dish, and without the LLM it SHALL reject an uncatalogued custom dish with HTTP 422. | M |
+| FR-2.12 | The system SHALL allow a custom-dish path that is AI-backed: it SHALL require the LLM, SHALL NOT silently fall back to an unmodified offline recipe, SHALL return HTTP 422 when the LLM is disabled, and SHALL return HTTP 429 when the daily quota is exhausted and no cached LLM recipe exists. | M |
+| FR-2.13 | Step 1 SHALL expose a visible "Add your custom dish" action, and custom/modification requests SHALL be routed through the AI-backed custom path rather than normal quick picks. | M |
 | FR-2.3 | The servings step SHALL default to 4 and allow selection from 1–20 via a slider. | M |
 | FR-2.4 | The servings step SHALL allow typing an exact value from 1–100. | S |
 | FR-2.5 | The system SHALL accept the dish and servings together when entering the servings step. | M |
@@ -144,6 +149,9 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 | FR-3.5 | The system SHALL operate without an LLM key using an offline recipe corpus for supported dishes. | S |
 | FR-3.6 | The system SHALL resolve a complete recipe (ingredients + scaled quantities + ordered cooking steps) in a single call given dish and servings. | M |
 | FR-3.7 | The recipe SHALL include 3–8 ordered cooking steps as text. | S |
+| FR-3.8 | The system SHALL limit logical LLM requests to a configurable deployment-wide daily budget (default 6), resetting at midnight in `LLM_QUOTA_TIMEZONE` (default `Asia/Kolkata`). | M |
+| FR-3.9 | When the budget is exhausted, AI-dependent requests — including custom dishes and modifications — SHALL return HTTP 429 with a user-facing message instead of an unmodified fallback; plain catalogue dishes with offline recipes SHALL remain usable. | M |
+| FR-3.10 | The budget SHALL be disabled when `LLM_DAILY_LIMIT=0`. | S |
 
 ### 3.4 Catalog Matching & Cart Building (Step 3b)
 | ID | Requirement | Priority |
@@ -194,13 +202,15 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 
 ### 4.1 User Interfaces
 - **UI-1:** Browser-based single page implementing a 4-step wizard with a progress stepper: **Dish → Servings → Review → Payment**.
-- **UI-2:** Step 1 (Dish) — text input with live catalogue suggestions, keyboard navigation, a final “Something else” custom-dish option, and quick-pick chips. Known suggestions/chips advance directly; ambiguous names show candidate cards and advance on selection. Only custom dishes show a confirmation preview with **Use this dish / Change dish**, optional gated photo, or an inline error plus toast for rejected regular dishes.
+- **UI-2:** Step 1 (Dish) — text input with live catalogue suggestions, keyboard navigation, quick-pick chips without modifier presets, and a visible **Add your custom dish** card. Known suggestions/chips advance directly; ambiguous names show candidate cards and advance on selection. Only custom dishes show a confirmation preview with **Use this dish / Change dish**, optional gated photo, or an inline error plus toast for rejected regular dishes. The custom input supports Enter to submit and Escape to return to the list.
 - **UI-3:** Step 2 (Servings) — slider (1–20, default 4), an optional exact-number input (1–100), and a Confirm action.
 - **UI-4:** Step 3 (Review) — a full recipe card (ingredients + cooking steps) beside the cart, with per-item quantity controls, a Remove action, and a catalog search to add items. Unmatched ingredients are shown as a notice.
 - **UI-5:** Step 3 shows subtotal, delivery, handling and total with a live bill, plus **Cancel order** and **Proceed to Payment** actions.
 - **UI-8:** Step 3 shows an overall **recipe + basket feedback** bar (like / dislike). Feedback is best-effort and never blocks cart editing or payment.
 - **UI-6:** Step 4 (Payment) — mock method selection (UPI / Card / COD), a delivery **address** field (default "Home"), and an order summary; succeeds to a confirmation screen with the order id.
 - **UI-7:** A post-order screen shows the order id, method, and bill summary with a "Start a new order" action.
+- **UI-9:** The payment action SHALL return to an enabled, non-processing state after a successful
+  order and after starting a new order.
 
 ### 4.2 Software Interfaces (REST API)
 | Method | Path | Purpose |
@@ -210,11 +220,11 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 | POST | `/api/session` | Create a session |
 | GET | `/api/session/{session_id}` | Fetch current session state (dish, servings, stage, cart, recipe, paused) |
 | GET | `/api/dish/suggest?q=&limit=` | Deterministic catalogue typeahead with AND semantics |
-| POST | `/api/dish/{session_id}` | Resolve the dish `{dish, custom?}`; regular unknown dishes return HTTP 422, custom dishes may use the LLM |
+| POST | `/api/dish/{session_id}` | Resolve the dish `{dish, custom?}`; regular unknown dishes return HTTP 422, custom dishes require the LLM (422 without a key) and return HTTP 429 when the daily quota is exhausted |
 | GET | `/api/dish/photo?dish=` | Cached attributed photo lookup used only on the custom confirmation preview |
 | POST | `/api/synonyms` | Learn a user dish correction `{term, canonical}` |
 | POST | `/api/feedback/{session_id}` | Capture `dish_rejected`, `dish_correction`, `review_liked`, or `review_disliked` (best-effort) |
-| POST | `/api/servings/{session_id}` | Resolve recipe for `{dish, servings, custom?}` and build the cart (wizard step 2) |
+| POST | `/api/servings/{session_id}` | Resolve recipe for `{dish, servings, custom?}` and build the cart (wizard step 2); returns HTTP 429 for an AI-only recipe when the quota is exhausted |
 | POST | `/api/chat/{session_id}` | Send a user message; run the agent (legacy/conversational) |
 | GET | `/api/cart/{session_id}` | Fetch cart items + totals |
 | POST | `/api/cart/{session_id}/items` | Add a product to the cart |
@@ -251,6 +261,7 @@ Requirement IDs: **FR-<group>.<n>**. Priority: M = Mandatory, S = Should, C = Co
 | NFR-11 | Resilience | Optional backend photo lookup failures SHALL NOT block dish confirmation; failed lookups SHALL be retried after a short backoff window. The wizard does not depend on photos. |
 | NFR-12 | Regression | The system SHALL include a deterministic offline golden dataset and a live suite for LLM/photo paths. |
 | NFR-13 | Resilience | Feedback capture SHALL be best-effort; a disabled queue or storage failure SHALL NOT block dish confirmation, cart review, or payment. |
+| NFR-14 | Cost control | LLM-backed work SHALL be bounded by a deployment-wide daily budget; exhaustion SHALL degrade gracefully without breaking catalogue or offline flows. |
 
 ---
 
@@ -277,7 +288,7 @@ Extends UC-1. After the cart is built the user returns to Step 2 and changes ser
 
 ### UC-5: Unrecognized regular dish vs. custom dish
 1. User types "Unicorn stew" as normal input. 2. The system rejects the uncatalogued dish immediately (HTTP 422) and shows a clear message; no recipe LLM call or cart is created.
-3. If the user chooses the custom path with the LLM enabled, the system accepts the name, previews it, and may create a new recipe. Without an LLM key, the custom path rejects an uncatalogued dish with a clear HTTP 422 message.
+3. If the user chooses **Add your custom dish** with the LLM enabled, the system accepts the name, previews it, and creates a new recipe. Without an LLM key, the custom path rejects the request with a clear HTTP 422 message. If the quota is exhausted and no cached LLM recipe exists, it returns HTTP 429; it never substitutes an unmodified offline recipe.
 
 ### UC-6: Cancel the pending order
 Extends UC-1 step 3. The user clicks **Cancel order**; the system resumes the paused agent with `cancel`, discards the review, and returns the user to Step 1 with a fresh session. No order is created.
@@ -301,6 +312,15 @@ confirmation or cart building, and regular catalogue dishes never request a phot
 2. If the user then picks a candidate or confirms a corrected dish, the system appends a linked `dish_correction` event (`parent_id`).
 3. Reviewing the cart, the user taps like or dislike; the system appends an overall recipe + basket snapshot. Dislikes are marked for review.
 4. Operators later inspect the queue and promote selected events into curated golden cases. Capture failures are surfaced only as `stored:false` and never interrupt shopping.
+
+### UC-11: LLM budget exhausted
+1. The demo has used its 6 logical LLM requests for the day.
+2. A user picks a catalogue dish with an offline recipe (e.g. Dal Makhani); the recipe and cart are
+   still built without an LLM call.
+3. A custom dish, modification, or AI-only recipe is refused with HTTP 429 and the message
+   “Oops! The AI chef has used today’s free AI quota. Please try again tomorrow, or pick a dish from
+   the catalogue.” No unmodified offline fallback is returned for these requests.
+4. The counter resets automatically after midnight in `Asia/Kolkata`.
 
 ---
 
@@ -331,7 +351,11 @@ confirmation or cart building, and regular catalogue dishes never request a phot
 | AC-21 | A recipe containing kale leaves, dry chickpeas, and water never matches coriander leaves, chana dal, or rose water; water is excluded from the cart. | FR-4.1, FR-4.7 |
 | AC-22 | A requested photo resolves to a relevant, sufficiently large image (never a person or decorative item); weak matches return `{kind:"none"}`. | FR-2.10, NFR-11 |
 | AC-23 | Typing `malai chaap` returns only Malai Soy Chaap; `chaap` returns all chaap variants; `paneer` returns paneer dishes. | FR-2.11, UC-8 |
-| AC-24 | With the LLM enabled, a genuinely new custom dish is accepted; without a key, an uncatalogued custom dish yields HTTP 422. A custom known dish always resolves. | FR-2.12, UC-5 |
+| AC-24 | With the LLM enabled, a custom dish is accepted and its recipe is LLM-sourced; without a key, every custom dish yields HTTP 422. With the quota exhausted and no cached LLM recipe, a custom dish yields HTTP 429 and never an unmodified offline recipe. | FR-2.12, UC-5 |
+| AC-25 | After 6 logical LLM requests in a day, an AI-only dish/recipe request, custom dish, or modification returns HTTP 429 with the quota message; a plain catalogue dish with an offline recipe, a cached LLM recipe, or a quota-free catalogue pick still succeeds. | FR-3.8, FR-3.9, NFR-14 |
+| AC-26 | The quota counter resets on the next day in `Asia/Kolkata`, and `LLM_DAILY_LIMIT=0` disables enforcement. | FR-3.8, FR-3.10 |
+| AC-27 | After a successful payment and after starting a new order, the payment button is enabled and no longer shows a processing state. | UI-9, UC-1 |
+| AC-28 | Step 1 shows an **Add your custom dish** action and no modifier-preset chips; custom requests are sent with `custom=true`, and cached offline recipes are ignored for them. | FR-2.13, FR-2.12, UI-2 |
 
 ---
 

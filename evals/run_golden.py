@@ -25,7 +25,7 @@ from fastapi.testclient import TestClient
 from app import main as main_mod
 from app.agent import graph as graph_mod
 from app.models import Ingredient
-from app.services import matcher, photos, synonyms
+from app.services import llm_quota, matcher, photos, synonyms
 from evals.evaluators import evaluate, norm
 from evals.golden import SUITES, filter_cases, load_cases, load_manifest
 
@@ -210,6 +210,8 @@ def _isolate_state() -> None:
     synonyms.STORE_PATH = tmp / "synonyms.json"
     photos.CACHE_PATH = tmp / "photo_cache.json"
     photos.PHOTO_DIR = tmp / "photos"
+    llm_quota.QUOTA_PATH = tmp / "llm_quota.json"
+    llm_quota.reset()
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -258,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
     started = time.perf_counter()
     for case in cases:
         case_started = time.perf_counter()
+        llm_quota.reset()
         if args.live:
             graph_mod.get_llm = original_get_llm if case.live else (lambda: None)
         with graph_mod._recipe_cache_lock:

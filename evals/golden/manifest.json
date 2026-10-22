@@ -41,7 +41,7 @@
     "Matar Kulcha remains a live ambiguity case: the canonical dish stays Matar Kulcha and the card must offer Chole Kulche.",
     "Typeahead cases are deterministic and verify AND semantics for paneer/chaap searches.",
     "Baselines live in evals/baselines and are written with --write-baseline.",
-    "Catalogue suggestions remain deterministic; the custom path may use the LLM for new dishes.",
+    "Catalogue suggestions remain deterministic; the custom path is AI-backed for new dishes and modifications.",
     "Photos are shown only on the custom confirmation card and only when the relevance/quality gate passes."
   ]
 }

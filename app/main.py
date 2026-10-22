@@ -13,7 +13,7 @@ from starlette.requests import Request
 
 from app import config
 from app.agent import recipes
-from app.agent.graph import graph, parse_input
+from app.agent.graph import cached_recipe_source, graph, parse_input
 from app.models import (
     CartAddRequest,
     CartUpdateRequest,
@@ -25,13 +25,13 @@ from app.models import (
     ServingsRequest,
     SynonymRequest,
 )
-from app.services import feedback, photos, synonyms
+from app.services import feedback, llm_quota, photos, synonyms
 from app.services.cart import cart_service
 from app.services.catalog import get_catalog
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-app = FastAPI(title="QuickChef", version="2.1.0")
+app = FastAPI(title="QuickChef", version="2.3.0")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -75,10 +75,16 @@ def _recipe_view(values: dict) -> dict:
     modified = recipes.has_modifiers(dish or "")
     notice = None
     if modified and source == "offline":
-        notice = (
-            "Offline mode can't apply your modification (e.g. \"without onion\"). "
-            "Enable the AI chef (Groq key) to honour it."
-        )
+        if config.LLM_ENABLED:
+            notice = (
+                "The AI chef couldn't apply your modification right now, so this is "
+                "the base recipe. Please try again shortly."
+            )
+        else:
+            notice = (
+                "Offline mode can't apply your modification (e.g. \"without onion\"). "
+                "Enable the AI chef (Groq key) to honour it."
+            )
     return {
         "dish": dish,
         "servings": values.get("servings"),
@@ -161,6 +167,22 @@ UNKNOWN_DISH_MESSAGE = (
 CUSTOM_LLM_MESSAGE = (
     "Custom dishes need the AI chef. Add a GROQ_API_KEY or pick a dish from the list."
 )
+LLM_QUOTA_MESSAGE = (
+    "Oops! The AI chef has used today’s free AI quota. "
+    "Please try again tomorrow, or pick a dish from the catalogue."
+)
+
+
+def _quota_response(stage: str = "await_dish") -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "understood": False,
+            "message": LLM_QUOTA_MESSAGE,
+            "stage": stage,
+            "quota_exhausted": True,
+        },
+    )
 
 
 def _dish_response(raw: str, canonical: str, *, source: str, custom: bool = False) -> dict:
@@ -189,14 +211,26 @@ def submit_dish(session_id: str, body: DishRequest):
     if not raw:
         return JSONResponse(status_code=422, content={"understood": False, "message": "Please enter a dish name."})
 
+    if body.custom and not config.LLM_ENABLED:
+        return JSONResponse(
+            status_code=422,
+            content={"understood": False, "message": CUSTOM_LLM_MESSAGE},
+        )
+
     learned = synonyms.lookup(raw)
     if learned:
         canonical = recipes.catalog_name(learned)
         if canonical:
-            return _dish_response(raw, canonical, source="synonym")
+            return _dish_response(raw, canonical, source="synonym", custom=body.custom)
+
+    known = recipes.catalog_name(raw)
+    if known:
+        return _dish_response(raw, known, source="catalog", custom=body.custom)
 
     if body.custom:
-        parsed = parse_input(raw)
+        if not llm_quota.available():
+            return _quota_response()
+        parsed = parse_input(raw, suggest_matches=False)
         candidate = (parsed.canonical_dish or parsed.dish or "").strip()
         if not candidate:
             return JSONResponse(
@@ -204,15 +238,6 @@ def submit_dish(session_id: str, body: DishRequest):
                 content={"understood": False, "message": "I couldn't understand that dish. Try another name."},
             )
         canonical = recipes.catalog_name(candidate) or candidate
-        if (
-            not config.LLM_ENABLED
-            and not recipes.has_catalog_dish(canonical)
-            and not recipes.get_fallback_recipe(canonical)
-        ):
-            return JSONResponse(
-                status_code=422,
-                content={"understood": False, "message": CUSTOM_LLM_MESSAGE},
-            )
         return _dish_response(raw, canonical, source=parsed.source or "custom", custom=True)
 
     parsed = parse_input(raw)
@@ -360,7 +385,7 @@ def submit_servings(session_id: str, body: ServingsRequest):
     learned = synonyms.lookup(raw_dish) or raw_dish
     if body.custom:
         dish = recipes.catalog_name(learned) or learned
-        if not config.LLM_ENABLED and not recipes.get_fallback_recipe(dish):
+        if not config.LLM_ENABLED:
             return JSONResponse(
                 status_code=422,
                 content={"message": CUSTOM_LLM_MESSAGE, "stage": "await_dish"},
@@ -372,6 +397,19 @@ def submit_servings(session_id: str, body: ServingsRequest):
                 status_code=422,
                 content={"message": UNKNOWN_DISH_MESSAGE, "stage": "await_dish"},
             )
+    cached_source = cached_recipe_source(dish, body.servings)
+    requires_ai = (
+        body.custom
+        or recipes.has_modifiers(dish)
+        or not recipes.get_fallback_recipe(dish)
+    )
+    if (
+        config.LLM_ENABLED
+        and not llm_quota.available()
+        and requires_ai
+        and cached_source != "llm"
+    ):
+        return _quota_response("await_servings")
     _reset_if_paused(session_id)
     message = f"I want to cook {dish} for {body.servings} people"
     result = graph.invoke(

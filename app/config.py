@@ -14,6 +14,12 @@ GROQ_TIMEOUT = float(os.getenv("GROQ_TIMEOUT", "30"))
 GROQ_MAX_TOKENS = int(os.getenv("GROQ_MAX_TOKENS", "1200"))
 GROQ_MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "1"))
 
+LLM_DAILY_LIMIT = int(os.getenv("LLM_DAILY_LIMIT", "6"))
+LLM_QUOTA_TIMEZONE = os.getenv("LLM_QUOTA_TIMEZONE", "Asia/Kolkata")
+LLM_QUOTA_PATH = Path(
+    os.getenv("LLM_QUOTA_PATH", str(BASE_DIR / "data" / "llm_quota.json"))
+)
+
 PHOTO_ENABLED = os.getenv("PHOTO_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
 PHOTO_TIMEOUT = float(os.getenv("PHOTO_TIMEOUT", "4"))
 PHOTO_CACHE_TTL = int(os.getenv("PHOTO_CACHE_TTL", "3600"))

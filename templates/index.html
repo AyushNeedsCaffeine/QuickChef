@@ -48,7 +48,7 @@
             <input
               id="dish-input"
               type="text"
-              placeholder="e.g. Dal Makhani, or Rajma without onion garlic"
+              placeholder="e.g. Dal Makhani, Paneer Butter Masala, Veg Biryani"
               role="combobox"
               aria-autocomplete="list"
               aria-controls="dish-suggestions"
@@ -58,10 +58,21 @@
           </form>
           <div id="dish-suggestions" class="dish-suggestions hidden" role="listbox" aria-label="Dish suggestions"></div>
         </div>
+        <button type="button" id="custom-dish-open" class="custom-dish-cta" aria-describedby="custom-dish-cta-help">
+          <span class="cta-icon" aria-hidden="true">+</span>
+          <span class="cta-copy">
+            <span class="cta-title">
+              Add your custom dish
+              <span class="cta-badge">AI</span>
+            </span>
+            <span class="cta-help" id="custom-dish-cta-help">Can't find it? Describe any dish or change.</span>
+          </span>
+          <span class="cta-action" aria-hidden="true">→</span>
+        </button>
         <div id="custom-dish-wrap" class="custom-dish-wrap hidden">
-          <label class="field-label" for="custom-dish-input">Add a different dish</label>
+          <label class="field-label" for="custom-dish-input">Add your custom dish</label>
           <div class="custom-dish-row">
-            <input id="custom-dish-input" type="text" placeholder="Type the dish you have in mind" autocomplete="off" />
+            <input id="custom-dish-input" type="text" placeholder="e.g. Rajma without onion garlic, pasta with corn" autocomplete="off" />
             <button type="button" class="primary" id="custom-dish-btn">Use this dish</button>
             <button type="button" class="ghost" id="custom-dish-cancel">Back to list</button>
           </div>
@@ -93,8 +104,8 @@
           <button class="chip-btn" data-dish="Paneer Tikka">Paneer Tikka</button>
           <button class="chip-btn" data-dish="Malai Soy Chaap">Malai Soy Chaap</button>
           <button class="chip-btn" data-dish="Butter Chicken">Butter Chicken</button>
-          <button class="chip-btn" data-dish="Rajma without onion garlic">Rajma (no onion/garlic)</button>
-          <button class="chip-btn" data-dish="Mix veg with mushrooms">Mix Veg + Mushrooms</button>
+          <button class="chip-btn" data-dish="Rajma Chawal">Rajma Chawal</button>
+          <button class="chip-btn" data-dish="Veg Biryani">Veg Biryani</button>
         </div>
       </div>
       <div class="food-strip" id="food-strip" aria-label="Popular dishes">

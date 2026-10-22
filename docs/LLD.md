@@ -1,7 +1,7 @@
 # Low-Level Design (LLD)
 
 **Project:** QuickChef — Recipe-to-Cart Shopping Agent
-**Version:** 2.1
+**Version:** 2.3
 **Companion documents:** [SRS](./SRS.md), [HLD](./HLD.md)
 
 ---
@@ -26,7 +26,8 @@ QuickChef/
 │       ├── cart.py          # CartService (cart + orders)
 │       ├── synonyms.py      # learned user dish corrections
 │       ├── photos.py        # optional Wikimedia photo gate for custom confirmation
-│       └── feedback.py      # append-only feedback queue (JSONL)
+│       ├── feedback.py      # append-only feedback queue (JSONL)
+│       └── llm_quota.py     # global daily LLM budget (file-backed)
 ├── data/catalog.json        # seed product catalog
 ├── data/synonyms.json       # learned corrections (runtime)
 ├── templates/index.html     # UI shell
@@ -93,8 +94,8 @@ class Order(BaseModel):
 Request bodies:
 - `ChatRequest{message}` — legacy conversational entry.
 - `CartAddRequest{product_id, quantity}`, `CartUpdateRequest{quantity}`, `ConfirmRequest{address}`.
-- `DishRequest{dish, custom=false}` — wizard step 1; `custom` enables the explicit custom-dish path, where the LLM may create a new dish.
-- `ServingsRequest{dish, servings, custom=false}` — wizard step 2; `servings` validated `1..100`; `custom` forwards the bypass for catalogue validation.
+- `DishRequest{dish, custom=false}` — wizard step 1; `custom=true` enables the AI-backed custom path (new dish or modification). Without an LLM key the request returns HTTP 422; quota exhaustion returns HTTP 429.
+- `ServingsRequest{dish, servings, custom=false}` — wizard step 2; `servings` validated `1..100`; `custom` forwards the AI-only recipe path and disables offline fallback.
 - `PayRequest{method, address="Home"}` — wizard step 4; `method` ∈ `{upi, card, cod}`.
 
 ---
@@ -109,6 +110,9 @@ Request bodies:
 | `GROQ_TIMEOUT` | 30 | Per-request LLM timeout (seconds) |
 | `GROQ_MAX_TOKENS` | 1200 | Completion token cap |
 | `GROQ_MAX_RETRIES` | 1 | Retries for transient/rate-limit failures |
+| `LLM_DAILY_LIMIT` | 6 | Global logical LLM requests per day; `0` disables |
+| `LLM_QUOTA_TIMEZONE` | `Asia/Kolkata` | Daily reset timezone |
+| `LLM_QUOTA_PATH` | `data/llm_quota.json` | File-backed quota counter |
 | `PHOTO_ENABLED` | true | Enable Wikimedia dish photos |
 | `PHOTO_TIMEOUT` | 4 | Photo HTTP timeout (seconds) |
 | `PHOTO_CACHE_TTL` | 3600 | Successful photo cache TTL (seconds) |
@@ -306,9 +310,51 @@ def load_events(path: Path | None = None) -> list[dict]
 
 ---
 
-## 11. Agent (`app/agent/`)
+## 11. Service: LLM Quota (`app/services/llm_quota.py`)
 
-### 10.1 State (`state.py`)
+A deployment-wide daily budget for logical LLM work. The demo has no accounts, so one global
+counter is the simplest useful guard against an expensive public deployment.
+
+```python
+LIMIT = config.LLM_DAILY_LIMIT          # 0 disables
+TIMEZONE = config.LLM_QUOTA_TIMEZONE    # Asia/Kolkata
+QUOTA_PATH = config.LLM_QUOTA_PATH      # data/llm_quota.json
+
+def available() -> bool
+def remaining() -> int | None           # None when disabled
+def consume() -> bool                   # reserve one request
+def reset() -> None                     # tests + per-case golden isolation
+```
+
+**Counter file.** `{"date": "YYYY-MM-DD", "count": n}`. A missing, corrupt, non-object, or
+previous-day file is treated as count 0. `consume()` takes a process lock, re-reads the file,
+checks the limit, and atomically writes via a sibling `.tmp` + `Path.replace()` (parent directory
+created on demand). Day boundaries use `datetime.now(ZoneInfo(TIMEZONE)).date()`; an unknown
+timezone logs a warning and falls back to UTC.
+
+**Integration.**
+- `_structured()` calls `consume()` only after `get_llm()` returns a model, immediately before
+  `with_structured_output(...)`. Provider retries inside that call do not consume extra units.
+- `POST /api/dish` and `POST /api/servings` pre-check `available()` only when an AI call is
+  actually required. Catalogue picks, learned synonyms, and cached LLM recipes
+  (`cached_recipe_source() == "llm"`) bypass the check.
+- Plain catalogue dishes with an offline fallback remain usable when the quota is exhausted. Custom
+  dishes and modifications return 429 unless an LLM recipe is already cached; they never receive an
+  offline fallback.
+- The pre-checks do not increment; the later `_structured()` call performs the single `consume()`.
+- On exhaustion the API returns HTTP 429 with `{quota_exhausted:true, message: ...}` and the UI
+  keeps the message visible instead of auto-returning to Step 1.
+- Tests monkeypatch `QUOTA_PATH` to `tmp_path`; the golden runner resets the counter per case.
+
+**Limitations.** File locking is process-local, so a multi-worker/multi-instance deployment would
+need a shared counter (e.g. Redis). The counter survives restarts on a persistent filesystem but may
+reset when an ephemeral deployment is replaced; that is acceptable for this demo.
+
+---
+
+## 12. Agent (`app/agent/`)
+
+### 12.1 State (`state.py`)
 
 ```python
 class AgentState(TypedDict, total=False):
@@ -337,7 +383,7 @@ class AgentState(TypedDict, total=False):
 `stage` values: `await_dish`, `await_servings`, `matching`, `cart_review`,
 `placing`, `cancelled`, `done`.
 
-### 10.2 Structured LLM Schemas (`graph.py`)
+### 12.2 Structured LLM Schemas (`graph.py`)
 
 ```python
 class DishCandidate(BaseModel):
@@ -369,19 +415,26 @@ key is set. `parse_input()` extracts intent; for unknown names
 `suggest_catalog_matches()` asks the LLM for up to three plausible catalog dishes; if the LLM
 returns none, a conservative head-noun spelling fallback can still offer a close catalogue name
 (`Matar Kulcha` → `Chole Kulche`, never `Matar Paneer`). Both use
-`_structured(schema, messages)`, which calls `with_structured_output(..., method="json_schema")`
-with a small retry — gpt-oss is unreliable at function-calling but solid with JSON-schema mode —
-and falls back to heuristics / no candidates on failure. `resolve_recipe(dish, servings, label)`
-returns a `ResolvedRecipe` (ingredients already scaled, plus steps), caches successful and
-failed results in a lock-protected TTL cache keyed by normalized dish + servings, and returns a
-defensive copy so graph state cannot mutate the cache.
+`_structured(schema, messages)`, which consumes one unit of the daily LLM quota, then calls
+`with_structured_output(..., method="json_schema")` with a small retry — gpt-oss is unreliable at
+function-calling but solid with JSON-schema mode — and falls back to heuristics / no candidates on
+failure or exhaustion. `parse_input(raw, suggest_matches=...)` disables catalogue-match prompting on
+the custom path. `cached_recipe_source(dish, servings)` returns `"llm"`, `"offline"`, or `None` so
+`/api/servings` can distinguish a reusable AI recipe from a stale fallback.
+`resolve_recipe(dish, servings, *, allow_fallback=True)` returns a `ResolvedRecipe` (ingredients
+already scaled, plus steps) and uses a lock-protected cache keyed by normalized dish + servings.
+`allow_fallback=False` is used for custom dishes: a cached offline recipe is ignored and no offline
+base recipe is substituted. LLM recipes are always cached. Offline recipes are cached only when the
+LLM is disabled or the AI provider failed while quota remained available; they are never cached for
+modified dishes or when the quota blocked the call. The method returns a defensive copy so graph
+state cannot mutate the cache.
 
 `PARSE_SYSTEM` keeps dish phrases **verbatim, including modifiers** and asks for a canonical name
 only for clearly known dishes. `MATCH_SYSTEM` is a separate, stricter prompt used only for unknown
 names; it must return `[]` rather than guessing when nothing is plausible. `EXTRACT_SYSTEM`
 honours exclusions (omit the ingredient and any step using it) and additions.
 
-### 10.3 Node Contracts
+### 12.3 Node Contracts
 
 | Node | Reads | Writes | Notes |
 |------|-------|--------|-------|
@@ -389,18 +442,18 @@ honours exclusions (omit the ingredient and any step using it) and additions.
 | `ask_dish` | — | `stage=await_dish`, `reply`, AI msg | |
 | `clarify` | `candidates` | `stage=await_dish`, `reply`, AI msg | presents up to 3 “Did you mean…” options |
 | `ask_servings` | `dish` | `stage=await_servings`, `reply`, AI msg | |
-| `extract` | `dish`, `servings`, `custom` | `ingredients`, `steps`, `recipe_source`, `stage=matching` **or** `dish=None`,`stage=await_dish`,`error` | `custom=True` bypasses catalogue rejection; failure re-prompts |
+| `extract` | `dish`, `servings`, `custom` | `ingredients`, `steps`, `recipe_source`, `stage=matching` **or** `dish=None`,`stage=await_dish`,`error` | `custom=True` bypasses catalogue rejection and calls `resolve_recipe(..., allow_fallback=False)`; failure re-prompts with a custom-specific AI message |
 | `match` | `session_id`, `ingredients`, `dish`, `servings` | `cart`, `unmatched`, `stage=cart_review`, `reply` | fills cart |
 | `cart_review` | `session_id`, `cart` | `stage=placing` + `payment_method` + `address` (confirm) or `stage=cancelled` | calls `interrupt()`; resume value carries `action` + `method` + `address` |
 | `place_order` | `session_id`, `dish`, `payment_method`, `address` | `order`, `stage=done`, `reply` | calls `CartService.place_order(address, payment_method)` |
 
-### 10.4 Heuristic Parser (`heuristic_parse`)
+### 12.4 Heuristic Parser (`heuristic_parse`)
 
 - Servings: first integer in the message.
 - Dish: remove digits and filler words (`i want to cook`, `for`, `people`, …),
   strip punctuation; `None` if empty or the message is just a number.
 
-### 10.5 Routers
+### 12.5 Routers
 
 ```python
 route_after_understand: dish missing→ask_dish; candidates need clarification→clarify;
@@ -409,7 +462,7 @@ route_after_extract:    stage=="matching" → match; else END
 route_after_review:     stage=="placing"  → place_order; else END
 ```
 
-### 10.6 Human-in-the-Loop
+### 12.6 Human-in-the-Loop
 
 `cart_review` calls `interrupt({stage, session_id, cart})`. The compiled graph
 (checkpointer `MemorySaver`) persists state and returns control to the API with the
@@ -419,7 +472,7 @@ thread paused (`state.next` non-empty). Resuming:
 graph.invoke(Command(resume={"action": "confirm"|"cancel"}), config={"configurable": {"thread_id": sid}})
 ```
 
-### 10.7 Fallback Recipes (`recipes.py`)
+### 12.7 Fallback Recipes (`recipes.py`)
 
 `DISH_POPULAR` / `POPULAR_DISHES` include additional catalogue dishes such as paneer
 tikka/lababdar, soy-chaap variants, butter chicken, biryani, egg dishes, dal tadka/fry,
@@ -453,7 +506,7 @@ same canonical dish. Helpers:
 
 ---
 
-## 12. API Layer (`app/main.py`)
+## 13. API Layer (`app/main.py`)
 
 **Helpers**
 - `_thread(session_id)` → `{"configurable": {"thread_id": session_id}}`
@@ -473,11 +526,11 @@ same canonical dish. Helpers:
 | `POST /api/session` | 200 new `session_id` | — |
 | `GET /api/session/{sid}` | 200 `{...session, recipe, cart}` | — |
 | `GET /api/dish/suggest?q=&limit=` | 200 `{results:[{name}]}`; empty `q` returns popular dishes; limit clamped 1–12 | — |
-| `POST /api/dish/{sid}` | 200 `{understood, dish, display, raw, modifiers, candidates, needs_clarification, source, custom}`; learned synonyms skip the LLM; regular names validate against the catalogue, while `custom=true` may accept a new LLM-created dish | 422 empty/unknown regular dish; 422 unsupported custom dish when no LLM is configured |
+| `POST /api/dish/{sid}` | 200 `{understood, dish, display, raw, modifiers, candidates, needs_clarification, source, custom}`; learned synonyms skip the LLM; regular names validate against the catalogue, while `custom=true` accepts an AI-backed new dish/modification | 422 empty/unknown regular dish; 422 any custom dish when no LLM is configured; 429 AI quota exhausted |
 | `GET /api/dish/photo?dish=` | Cached photo `{kind, dish, url, source, source_url, artist, license, score, width, height}` or `{kind:"none", reason}` after relevance/quality gating | 422 missing dish |
 | `POST /api/synonyms` | 200 `{ok, learned}` after validating `{term, canonical}` | 422 empty term/canonical |
 | `POST /api/feedback/{sid}` | 200 `{ok, stored, id, status}`; review likes/dislikes require a recipe + cart snapshot | 422 empty rejection raw / missing correction `parent_id`+`accepted_dish`; review without snapshot returns `stored:false` |
-| `POST /api/servings/{sid}` | 200 `{recipe, cart, paused, stage}` after building; resolves the dish through learned synonyms, passes `preparsed=True` and `custom` | 422 uncatalogued regular/custom-no-LLM dish or recipe not found → wizard returns to Step 1 |
+| `POST /api/servings/{sid}` | 200 `{recipe, cart, paused, stage}` after building; resolves the dish through learned synonyms, passes `preparsed=True` and `custom`; plain catalogue/offline recipes and cached LLM recipes bypass the quota | 422 uncatalogued regular/custom-no-LLM dish or recipe not found → wizard returns to Step 1; 429 AI-only, custom, or modified recipe with the daily quota exhausted |
 | `POST /api/chat/{sid}` | 200 `{reply, stage, dish, servings, paused}`; if paused returns a review reminder | — |
 | `GET /api/cart/{sid}` | 200 `{items, totals}` | — |
 | `POST /api/cart/{sid}/items` | 200 updated cart | 404 unknown product |
@@ -491,7 +544,7 @@ same canonical dish. Helpers:
 
 ---
 
-## 13. Frontend (`templates/index.html`, `static/`)
+## 14. Frontend (`templates/index.html`, `static/`)
 
 A single page with five screens and a progress stepper: `screen-1` (Dish),
 `screen-2` (Servings), `screen-3` (Review), `screen-4` (Payment), `screen-done`.
@@ -510,21 +563,24 @@ A fixed, decorative **steaming-bowl** doodle (`.food-float`) floats bottom-right
 Client state: `{ sessionId, dish, display, rawDish, candidates, custom, dishContext, servings, cart, recipe,
 paused, maxStep }` plus a `customPhotoToken` that invalidates stale image loads. Typeahead uses a
 debounced `GET /api/dish/suggest`, an abortable request, an active index for keyboard navigation,
-and a final “Something else” option that reveals the custom input.
+and a final **Add your custom dish** option that reveals the custom input.
 
 Key flows:
 - **Boot:** `newSession()` → `POST /api/session`; `setServings(4)`; show step 1.
 - **Step 1:** `inputDish` → debounced typeahead (`renderDishSuggestions`) with Up/Down/Enter/Escape,
-  popular dishes on empty focus, and “Something else” → `#custom-dish-wrap`. `submitDish(raw)` →
+  popular dishes on empty focus, and **Add your custom dish** / `#custom-dish-open` →
+  `#custom-dish-wrap`. The page-1 CTA is hidden while the custom form is open and restored on
+  cancel/reset. The custom input submits on Enter and returns to the list on Escape. `submitDish(raw)` →
   `POST /api/dish/{sid}`. Known suggestions, quick-pick chips, and exact names advance directly via
-  `goToServings()`. Ambiguous names render up to three candidate cards; choosing one learns the
+  `goToServings()`. Quick picks no longer include modifier presets. Ambiguous names render up to three candidate cards; choosing one learns the
   correction and advances immediately. Only custom dishes call `showDishConfirm()` and wait for
   **Use this dish**; the preview may load one gated photo via `loadCustomPhoto()`. **Change dish**
   clears the card, focuses the input, and captures `dish_rejected`; a later accepted dish links
   `dish_correction`. Rejected regular dishes show inline error + toast and never create a recipe request.
 - **Step 2:** slider (1–20) / typed value (1–100) set `servings`; `submitServings()` →
   `POST /api/servings/{sid} {dish, servings, custom}` → store `recipe`+`cart`, render review,
-  advance to step 3. On 422, show the error and return to step 1.
+  advance to step 3. On 422, show the error and return to step 1; on 429, keep the quota message
+  visible and do not auto-return.
 - **Step 3:** `renderReview()` fills the recipe card (ingredients + steps), the
   **modifier notice** (`#modifier-note`, shown when the recipe was modified — and, offline,
   warns the base recipe was used) and an **unmatched notice** (`#unmatched-note`), then
@@ -533,16 +589,19 @@ Key flows:
   The overall feedback bar (`#review-feedback`) posts `review_liked` / `review_disliked`
   (best-effort, one per review session); dislikes queue a recipe + cart snapshot for review.
   **Cancel order** → `POST /api/cart/{sid}/cancel` → fresh Step 1.
-- **Step 4:** `renderPayment()` builds the summary; the address input (`#address-input`,
-  default "Home") is sent with `pay()` → `POST /api/order/{sid}/pay` `{method, address}` →
-  `renderDone(order)` → `screen-done`.
+- **Step 4:** `renderPayment()` builds the summary and calls `resetPaymentButton()` so the action is
+  always enabled and unlabelled as processing. The address input (`#address-input`, default "Home")
+  is sent with `pay()` → `POST /api/order/{sid}/pay` `{method, address}` → `renderDone(order)` →
+  `screen-done`.
 - **Start over / logo:** `resetWizard()` cancels any paused review, clears client state, calls
-  `newSession()`, shows step 1, and focuses the dish input. The logo (`#brand-home`) uses the same path.
+  `resetPaymentButton()`, calls `newSession()`, shows step 1, and focuses the dish input. The logo
+  (`#brand-home`) uses the same path. This prevents a successful payment from leaving the button
+  disabled for the next order.
 - The stepper allows navigating back to already-completed steps.
 
 ---
 
-## 14. Error Handling Summary
+## 15. Error Handling Summary
 
 | Condition | Behaviour |
 |-----------|-----------|
@@ -555,8 +614,10 @@ Key flows:
 | Feedback write fails / disabled | `POST /api/feedback` returns `{ok:true, stored:false, reason}`; the UI ignores it and keeps shopping |
 | Photo missing/blocked | Optional custom `GET /api/dish/photo` → `{kind:"none"}`; preview stays text-only |
 | Groq 429 / transient error | `_structured` retries once, then falls back to heuristics/offline |
+| Daily LLM quota exhausted | `_structured` skips the call; custom/modified and AI-only `/api/dish` and `/api/servings` return HTTP 429 with `quota_exhausted:true`; plain catalogue/offline paths and cached LLM recipes still succeed |
+| Corrupt/missing quota file | Treated as zero usage and rewritten on the next consume/reset |
 | Ingredient not in catalog | Added to `unmatched`, reported, non-fatal |
-| Dish has a modifier in offline mode | Base recipe built from the corpus; `recipe.notice` warns the modification needs the AI chef |
+| Custom/modified recipe with AI unavailable | No offline substitution: custom path returns 422 without a key or 429/recipe failure when quota-blocked. The legacy non-custom modifier path may build a base recipe only when the quota is not the blocker, with `recipe.notice` explaining the limitation. |
 | LangSmith key missing | `LANGSMITH_TRACING` forced to `false`; app runs normally |
 | Payment/confirm while not paused | HTTP 400 |
 | Cancel while not paused | HTTP 400 |
@@ -567,26 +628,30 @@ Key flows:
 
 ---
 
-## 15. Test Design (`tests/`)
+## 16. Test Design (`tests/`)
 
 | File | Coverage |
 |------|----------|
 | `test_catalog.py` | load, name/alias resolution, strict weak-overlap rejection, new SKUs, unknown→None, search ranking |
 | `test_pack_selector.py` | unit conversion, single/multiple packs, cheapest pack, count units, pricing |
 | `test_cart.py` | add, merge, update, remove, totals, free delivery, order + clear, errors |
-| `test_agent.py` | heuristic parsing, happy path + confirm, cancel, unknown dish, servings-first |
+| `test_agent.py` | heuristic parsing, happy path + confirm, cancel, unknown dish, servings-first, custom extract disables fallback, offline cache is ignored for custom, quota-blocked fallback is not cached |
 | `test_recipes.py` | `canonical_name`, `get_fallback_steps`, `scale` linearity, `_resolve_key` (incl. modifier phrases), unknown→None, `has_modifiers` |
 | `test_evals.py` | rule-based evaluators: must-include present/missing, must-exclude clean/violated, min-steps threshold |
 | `test_dish_resolution.py` | canonical names, strict token matching, colloquial/candidate behavior, modifier preservation |
 | `test_synonyms.py` | normalization, learn/lookup, persistence, atomic store, duplicate overwrite |
 | `test_feedback.py` | rejection/correction capture, review snapshots, validation, disabled/write-failure best effort, text caps, frontend hooks |
+| `test_llm_quota.py` | limit/persistence, day rollover, corrupt-file recovery, disabled quota, `_structured` skips the model when exhausted |
 | `test_photos.py` | canonical query/title scoring, people/decorations rejection, resolution/aspect gates, cache hits, allowlisted downloads, attribution, failure TTL |
 | `test_golden.py` | 77-case loader, unique ids, manifest counts, suggest evaluator, `display_not`/`matched_not`, feedback loader/promotion, cache-isolated offline subprocess gate |
-| `test_wizard_api.py` | HTTP wizard flow via `TestClient`: session, typeahead incl. `rasgula`, dish normalize, candidate payload, learned synonym skips LLM, custom known/new/no-LLM dish, regular catalogue-only 422, modifier notice, servings→recipe+cart with custom flag, custom-confirm photo markup, cart mutation, pay, address, cancel, logo reset, chat reminder, static assets |
+| `test_wizard_api.py` | HTTP wizard flow via `TestClient`: session, typeahead incl. `rasgula`, dish normalize, candidate payload, learned synonym skips LLM, custom known/new/no-LLM dish, custom CTA/menu copy, regular catalogue-only 422, custom/modified quota-exhausted 429 vs plain catalogue/offline bypass, cached LLM recipe bypass, cached offline custom rejection, modifier notice, servings→recipe+cart with custom flag, custom-confirm photo markup, cart mutation, pay, address, cancel, logo reset, payment-button reset contract, chat reminder, static assets |
 
 The agent and wizard tests monkeypatch `get_llm → None` (via `app.agent.graph`) for
 deterministic offline execution. Feedback tests also isolate `FEEDBACK_PATH` and `STORE_PATH` to
-a temp directory. The golden runner clears the recipe cache before every case, so a live result cannot leak into an offline case. The golden subprocess test runs the full offline suite in isolation.
+a temp directory. The root `conftest.py` autouse fixture isolates `LLM_QUOTA_PATH` per test and
+resets the counter. The golden runner clears the recipe cache and resets the quota before every
+case, so a live result or spent budget cannot leak into an offline case. The golden subprocess test
+runs the full offline suite in isolation.
 
 Run: `pytest -q`
 

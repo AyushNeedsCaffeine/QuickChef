@@ -17,6 +17,7 @@ from langsmith import Client, evaluate
 
 from app import config
 from app.agent.graph import resolve_recipe
+from app.services import llm_quota
 
 DATASET_NAME = "quickchef-recipes"
 
@@ -146,6 +147,7 @@ def main() -> None:
         print("No Groq key set; the eval target needs the LLM. Set GROQ_API_KEY in .env.")
         sys.exit(1)
 
+    llm_quota.LIMIT = 0
     client = Client()
     ensure_dataset(client)
 

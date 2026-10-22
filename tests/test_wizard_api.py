@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from app import main as main_mod
 from app.agent import graph as graph_mod
 from app.main import app
-from app.services import synonyms
+from app.services import llm_quota, synonyms
 
 
 @pytest.fixture(autouse=True)
@@ -264,10 +264,13 @@ def test_custom_unknown_dish_is_rejected_without_llm(client, session, monkeypatc
 
 def test_custom_llm_normalizes_typo_to_catalogue(client, session, monkeypatch):
     parsed = graph_mod.ParsedInput(
-        dish="rasgula", canonical_dish="Rasgulla", source="llm"
+        dish="bengali roshogolla", canonical_dish="Rasgulla", source="llm"
     )
-    monkeypatch.setattr(main_mod, "parse_input", lambda _raw: parsed)
-    r = client.post(f"/api/dish/{session}", json={"dish": "rasgula", "custom": True})
+    monkeypatch.setattr(main_mod, "parse_input", lambda _raw, **_kwargs: parsed)
+    r = client.post(
+        f"/api/dish/{session}",
+        json={"dish": "bengali roshogolla", "custom": True},
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["dish"] == "Rasgulla"
@@ -280,6 +283,124 @@ def test_custom_known_dish_is_accepted(client, session):
     assert r.status_code == 200
     assert r.json()["dish"] == "Paneer Tikka"
     assert r.json()["custom"] is True
+
+
+def test_custom_known_dish_requires_llm(client, session, monkeypatch):
+    monkeypatch.setattr(main_mod.config, "LLM_ENABLED", False)
+    r = client.post(f"/api/dish/{session}", json={"dish": "Paneer Tikka", "custom": True})
+    assert r.status_code == 422
+    assert "AI chef" in r.json()["message"]
+
+
+def _exhaust_quota(monkeypatch):
+    monkeypatch.setattr(llm_quota, "LIMIT", 1)
+    assert llm_quota.consume() is True
+    assert llm_quota.available() is False
+
+
+def test_known_catalogue_dish_still_works_when_quota_is_exhausted(client, session, monkeypatch):
+    _exhaust_quota(monkeypatch)
+    r = client.post(f"/api/dish/{session}", json={"dish": "Paneer Tikka"})
+    assert r.status_code == 200
+    assert r.json()["dish"] == "Paneer Tikka"
+    assert r.json()["source"] == "catalog"
+
+
+def test_custom_dish_is_rejected_when_quota_is_exhausted(client, session, monkeypatch):
+    _exhaust_quota(monkeypatch)
+    r = client.post(f"/api/dish/{session}", json={"dish": "Unicorn stew", "custom": True})
+    assert r.status_code == 429
+    body = r.json()
+    assert body["quota_exhausted"] is True
+    assert "try again tomorrow" in body["message"]
+
+
+def test_offline_recipe_still_works_when_quota_is_exhausted(client, session, monkeypatch):
+    _exhaust_quota(monkeypatch)
+    r = client.post(f"/api/servings/{session}", json={"dish": "Dal Makhani", "servings": 4})
+    assert r.status_code == 200
+    assert r.json()["recipe"]["source"] == "offline"
+
+
+def test_llm_only_recipe_is_rejected_when_quota_is_exhausted(client, session, monkeypatch):
+    _exhaust_quota(monkeypatch)
+    r = client.post(f"/api/servings/{session}", json={"dish": "Paneer Tikka", "servings": 4})
+    assert r.status_code == 429
+    assert r.json()["quota_exhausted"] is True
+
+
+def test_custom_servings_require_llm_without_key(client, session, monkeypatch):
+    monkeypatch.setattr(main_mod.config, "LLM_ENABLED", False)
+    r = client.post(
+        f"/api/servings/{session}",
+        json={"dish": "Rajma Chawal", "servings": 4, "custom": True},
+    )
+    assert r.status_code == 422
+    assert "AI chef" in r.json()["message"]
+
+
+def test_custom_dish_recipe_is_rejected_when_quota_is_exhausted(client, session, monkeypatch):
+    _exhaust_quota(monkeypatch)
+    r = client.post(
+        f"/api/servings/{session}",
+        json={"dish": "Rajma without onion garlic", "servings": 4, "custom": True},
+    )
+    assert r.status_code == 429
+    assert r.json()["quota_exhausted"] is True
+
+
+def test_modified_dish_is_rejected_when_quota_is_exhausted(client, session, monkeypatch):
+    _exhaust_quota(monkeypatch)
+    r = client.post(
+        f"/api/servings/{session}",
+        json={"dish": "Rajma without onion garlic", "servings": 4},
+    )
+    assert r.status_code == 429
+    assert r.json()["quota_exhausted"] is True
+
+
+def _cache_recipe(dish, servings, source):
+    key = (graph_mod._norm(dish), servings)
+    graph_mod._recipe_cache[key] = graph_mod.ResolvedRecipe(
+        ingredients=[
+            graph_mod.RecipeItem(name="Milk", quantity=500, unit="ml", category="dairy")
+        ],
+        steps=["Boil the milk."],
+        source=source,
+    )
+    return key
+
+
+def test_cached_llm_recipe_is_allowed_when_quota_is_exhausted(client, session, monkeypatch):
+    dish = "Misal Pav"
+    key = _cache_recipe(dish, 4, "llm")
+    try:
+        _exhaust_quota(monkeypatch)
+        r = client.post(
+            f"/api/servings/{session}",
+            json={"dish": dish, "servings": 4, "custom": True},
+        )
+        assert r.status_code == 200
+        assert r.json()["recipe"]["source"] == "llm"
+    finally:
+        graph_mod._recipe_cache.pop(key, None)
+
+
+def test_cached_offline_recipe_is_rejected_for_custom_when_quota_is_exhausted(
+    client, session, monkeypatch
+):
+    dish = "Misal Pav"
+    key = _cache_recipe(dish, 4, "offline")
+    try:
+        _exhaust_quota(monkeypatch)
+        r = client.post(
+            f"/api/servings/{session}",
+            json={"dish": dish, "servings": 4, "custom": True},
+        )
+        assert r.status_code == 429
+        assert r.json()["quota_exhausted"] is True
+    finally:
+        graph_mod._recipe_cache.pop(key, None)
 
 
 def test_suggest_endpoint_chaap_and_and_semantics(client):
@@ -314,6 +435,14 @@ def test_suggest_endpoint_empty_and_unknown(client):
 def test_homepage_has_typeahead_and_custom_only_photo_ui(client):
     html = client.get("/").text
     assert 'id="dish-suggestions"' in html
+    assert 'id="custom-dish-open"' in html
+    assert 'class="custom-dish-cta"' in html
+    assert 'class="cta-badge"' in html
+    assert "Add your custom dish" in html
+    assert "Describe any dish or change." in html
+    assert 'data-dish="Rajma Chawal"' in html
+    assert 'data-dish="Rajma without onion garlic"' not in html
+    assert 'data-dish="Mix veg with mushrooms"' not in html
     assert 'id="custom-dish-input"' in html
     assert 'id="brand-home"' in html
     assert 'id="dc-photo"' in html
@@ -377,6 +506,19 @@ def test_servings_passes_preparsed_dish(client, session, monkeypatch):
     assert captured["preparsed"] is True
     assert captured["dish"] == "Chole Kulche"
     assert captured["servings"] == 3
+
+
+def test_payment_button_resets_after_success_and_new_order(client):
+    script = client.get("/static/script.js").text
+    start = script.index("function resetPaymentButton()")
+    end = script.index("function renderPayment()")
+    helper = script[start:end]
+    assert "btn.disabled = false;" in helper
+    assert 'btn.classList.remove("is-processing");' in helper
+    assert "resetPaymentButton();" in script[end : end + 200]
+    reset_start = script.index("async function resetWizard")
+    reset_body = script[reset_start : script.index("el(\"cancel-order\")")]
+    assert "resetPaymentButton();" in reset_body
 
 
 def test_static_assets_served(client):

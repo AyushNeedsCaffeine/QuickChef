@@ -30,7 +30,7 @@ def read_events():
 
 def test_dish_rejection_is_captured(client, session):
     dish = client.post(f"/api/dish/{session}", json={"dish": "dal makhni"}).json()
-    assert dish["source"] == "heuristic"
+    assert dish["source"] == "catalog"
 
     response = client.post(
         f"/api/feedback/{session}",
@@ -58,7 +58,7 @@ def test_dish_rejection_is_captured(client, session):
     assert event["dish"]["raw"] == "dal makhni"
     assert event["dish"]["suggested_dish"] == "Dal Makhani"
     assert event["dish"]["display"] == "Dal Makhani"
-    assert event["dish"]["source"] == "heuristic"
+    assert event["dish"]["source"] == "catalog"
     assert body["id"] == event["id"]
 
 

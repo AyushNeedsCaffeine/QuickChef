@@ -18,7 +18,7 @@ from app import config
 from app.agent import prompts, recipes
 from app.agent.state import AgentState
 from app.models import Ingredient
-from app.services import matcher
+from app.services import llm_quota, matcher
 from app.services.cart import cart_service
 from app.services.catalog import _norm, get_catalog
 
@@ -94,6 +94,9 @@ def _structured(schema, messages: list, attempts: int = 2, label: str = "llm"):
     """
     llm = get_llm()
     if not llm:
+        return None
+    if not llm_quota.consume():
+        log.warning("%s skipped: daily LLM quota exhausted", label)
         return None
     parser = llm.with_structured_output(schema, method="json_schema")
     for attempt in range(1, attempts + 1):
@@ -211,7 +214,7 @@ def _close_catalog_candidates(text: str) -> list[DishCandidate]:
     ]
 
 
-def parse_input(message: str) -> ParsedInput:
+def parse_input(message: str, *, suggest_matches: bool = True) -> ParsedInput:
     result = _structured(
         ParsedInput,
         [
@@ -240,8 +243,8 @@ def parse_input(message: str) -> ParsedInput:
             if product and recipes.has_catalog_dish(product.name):
                 result.canonical_dish = recipes.catalog_name(product.name) or product.name
             else:
-                matches = suggest_catalog_matches(raw)
-                if not matches:
+                matches = suggest_catalog_matches(raw) if suggest_matches else []
+                if suggest_matches and not matches:
                     matches = _close_catalog_candidates(canonical)
                 result.candidates = matches
                 result.needs_clarification = bool(matches)
@@ -267,11 +270,20 @@ def _copy_recipe(recipe: ResolvedRecipe) -> ResolvedRecipe:
     )
 
 
-def resolve_recipe(dish: str, servings: int) -> ResolvedRecipe | None:
+def cached_recipe_source(dish: str, servings: int) -> str | None:
     cache_key = (_norm(dish), int(servings))
     with _recipe_cache_lock:
         cached = _recipe_cache.get(cache_key)
-    if cached is not None:
+    return cached.source if cached is not None else None
+
+
+def resolve_recipe(
+    dish: str, servings: int, *, allow_fallback: bool = True
+) -> ResolvedRecipe | None:
+    cache_key = (_norm(dish), int(servings))
+    with _recipe_cache_lock:
+        cached = _recipe_cache.get(cache_key)
+    if cached is not None and (allow_fallback or cached.source == "llm"):
         return _copy_recipe(cached)
 
     result = _structured(
@@ -285,7 +297,7 @@ def resolve_recipe(dish: str, servings: int) -> ResolvedRecipe | None:
     recipe: ResolvedRecipe | None = None
     if isinstance(result, RecipeDraft) and result.ingredients:
         recipe = ResolvedRecipe(ingredients=result.ingredients, steps=result.steps, source="llm")
-    else:
+    elif allow_fallback:
         fallback = recipes.get_fallback_recipe(dish)
         if fallback:
             recipe = ResolvedRecipe(
@@ -298,8 +310,15 @@ def resolve_recipe(dish: str, servings: int) -> ResolvedRecipe | None:
             )
 
     if recipe is not None:
-        with _recipe_cache_lock:
-            _recipe_cache[cache_key] = _copy_recipe(recipe)
+        # Never cache an offline fallback for a custom/modified dish or when the
+        # quota (not the provider) was what blocked the AI. Otherwise a stale
+        # unmodified recipe survives after quota resets and silently wins later.
+        ai_required = config.LLM_ENABLED and (
+            recipes.has_modifiers(dish) or not llm_quota.available()
+        )
+        if recipe.source == "llm" or not ai_required:
+            with _recipe_cache_lock:
+                _recipe_cache[cache_key] = _copy_recipe(recipe)
     return recipe
 
 
@@ -388,12 +407,18 @@ def extract(state: AgentState) -> dict:
             "messages": [AIMessage(content=reply)],
         }
     servings = int(state["servings"])
-    recipe = resolve_recipe(dish, servings)
+    recipe = resolve_recipe(dish, servings, allow_fallback=not state.get("custom"))
     if not recipe or not recipe.ingredients:
-        reply = (
-            f"Sorry, I couldn't build a recipe for '{dish}'. "
-            "Could you name a well-known dish (e.g. Dal Makhani, Paneer Butter Masala, Chole)?"
-        )
+        if state.get("custom"):
+            reply = (
+                f"Sorry, I couldn't build a recipe for '{dish}'. "
+                "Custom dishes need the AI chef. Please try again shortly or pick a dish from the menu."
+            )
+        else:
+            reply = (
+                f"Sorry, I couldn't build a recipe for '{dish}'. "
+                "Could you name a well-known dish (e.g. Dal Makhani, Paneer Butter Masala, Chole)?"
+            )
         return {
             "dish": None,
             "steps": [],

@@ -28,7 +28,11 @@ let lastTotal = null;
 async function api(path, options = {}) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || data.detail || `Request failed (${res.status})`);
+  if (!res.ok) {
+    const err = new Error(data.message || data.detail || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -96,6 +100,7 @@ function showStep(n) {
   const target = screens[key];
   if (goingBack) target.classList.add("dir-back");
   target.classList.add("active");
+  if (n === 1) syncCustomDishCta();
   if (typeof n === "number") {
     state.maxStep = Math.max(state.maxStep, n);
   }
@@ -166,9 +171,16 @@ function closeCustomInput() {
   customInput.value = "";
 }
 
+function syncCustomDishCta() {
+  const formOpen = !el("custom-dish-wrap").classList.contains("hidden");
+  if (!formOpen) state.custom = false;
+  el("custom-dish-open").classList.toggle("hidden", formOpen);
+}
+
 function hideCustomDish() {
   state.custom = false;
   closeCustomInput();
+  el("custom-dish-open").classList.remove("hidden");
 }
 
 function setActiveSuggestion(index) {
@@ -201,6 +213,7 @@ function openCustomDish() {
   dishInput.value = "";
   el("dish-feedback").innerHTML = "";
   state.custom = true;
+  el("custom-dish-open").classList.add("hidden");
   el("custom-dish-wrap").classList.remove("hidden");
   customInput.value = "";
   customInput.focus();
@@ -228,7 +241,7 @@ function renderSuggestions(names) {
   custom.className = "dish-suggestion custom";
   custom.id = `dish-option-${names.length}`;
   custom.setAttribute("role", "option");
-  custom.innerHTML = `<span><span class="plus">+</span> Something else / Add a different dish</span><span class="suggestion-hint">Not listed</span>`;
+  custom.innerHTML = `<span><span class="plus">+</span> Add your custom dish</span><span class="suggestion-hint">Describe it your way</span>`;
   custom.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -459,17 +472,22 @@ dishInput.addEventListener("keydown", (event) => {
   }
 });
 
+el("custom-dish-open").addEventListener("click", openCustomDish);
+el("custom-dish-btn").addEventListener("click", () => {
+  const value = customInput.value.trim();
+  if (value) submitDish(value, { custom: true });
+});
 customInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
     const value = customInput.value.trim();
     if (value) submitDish(value, { custom: true });
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    hideCustomDish();
+    dishInput.focus();
+    loadSuggestions();
   }
-});
-
-el("custom-dish-btn").addEventListener("click", () => {
-  const value = customInput.value.trim();
-  if (value) submitDish(value, { custom: true });
 });
 el("custom-dish-cancel").addEventListener("click", () => {
   hideCustomDish();
@@ -580,7 +598,7 @@ async function submitServings() {
     showStep(3);
   } catch (err) {
     setFeedback(fb, `⚠ ${err.message}`, "error");
-    setTimeout(() => showStep(1), 1600);
+    if (err.status !== 429) setTimeout(() => showStep(1), 1600);
   } finally {
     btn.disabled = false;
   }
@@ -765,6 +783,7 @@ async function resetWizard({ cancelPending = false, focus = false } = {}) {
   el("address-input").value = "Home";
   el("custom-toggle").checked = false;
   el("custom-wrap").classList.add("hidden");
+  resetPaymentButton();
   resetReviewFeedback();
   setServings(4);
   await newSession();
@@ -807,7 +826,15 @@ el("review-like").addEventListener("click", (e) => sendReviewFeedback("review_li
 el("review-dislike").addEventListener("click", (e) => sendReviewFeedback("review_disliked", e.currentTarget));
 
 /* ---------- STEP 4: payment ---------- */
+function resetPaymentButton() {
+  const btn = el("pay-btn");
+  btn.disabled = false;
+  btn.classList.remove("is-processing");
+  btn.textContent = "Pay ₹0";
+}
+
 function renderPayment() {
+  resetPaymentButton();
   const totals = state.cart.totals || {};
   const summary = el("pay-summary");
   const rows = (state.cart.items || [])
