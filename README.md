@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
+  <a href="#screenshots">Screenshots</a> ·
   <a href="#custom-dishes">Custom dishes</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#rest-api">REST API</a> ·
@@ -29,6 +30,14 @@ Step 2  Servings  Slider or typed input, e.g. 4 people
 Step 3  Review    Full recipe + editable ingredient cards + live bill
 Step 4  Payment   UPI / Card / COD -> order confirmation
 ```
+
+## Screenshots
+
+| Dish selection | Custom dish |
+|:---:|:---:|
+| [![Dish selection with custom dish card](docs/screenshots/step-1-dish.png)](docs/screenshots/step-1-dish.png) | [![Custom dish confirmation](docs/screenshots/custom-dish.png)](docs/screenshots/custom-dish.png) |
+| **Recipe + basket review** | **Payment** |
+| [![Recipe and basket review](docs/screenshots/review.png)](docs/screenshots/review.png) | [![Payment method selection](docs/screenshots/payment.png)](docs/screenshots/payment.png) |
 
 ## v2.3.0 highlights
 
