@@ -54,7 +54,7 @@ Try: `paneer`, `dal makhni`, or hit **Add your custom dish** and enter something
 
 | 3. Review recipe & cart | 4. Add/Remove Iteam & Final confirmation |
 |:---:|:---:|
-| ![Review](docs/screenshots/03-review.png) | ![Payment](docs/screenshots/04-Confirmation.png) |
+| ![Review](docs/screenshots/03-review.png) | ![Payment](docs/screenshots/04-confirmation.png) |
 
 <!-- Save your screenshots from the Google Doc into docs/screenshots/ using the file names above. -->
 
